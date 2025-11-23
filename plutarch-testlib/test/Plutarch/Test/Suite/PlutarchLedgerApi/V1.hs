@@ -44,6 +44,7 @@ tests =
         (typeName @(S -> Type) @PLA.PCredential)
         [ checkLedgerProperties @PLA.PCredential
         , propPTryFromRoundrip @PLA.PCredential
+        , checkHaskellOrdEquivalent @PLA.PCredential
         ]
     , testGroup
         (typeName @(S -> Type) @PLA.PStakingCredential)

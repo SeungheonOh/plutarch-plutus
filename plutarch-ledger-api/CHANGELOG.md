@@ -21,6 +21,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 * `DerivePlutusType` instance for `PPosixTime`, `PDatum`, `PRedeemer` as 
   `DerivePlutusType` is deprecated now. 
 
+### Fixed
+
+* Restored the `POrd` instance for `PCredential`
+
 ## 3.5.0 -- 07/11/2025
 
 ### Added
