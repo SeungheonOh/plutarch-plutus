@@ -1,6 +1,7 @@
 module Plutarch.Test.Suite.Plutarch.Bool (tests) where
 
 import Plutarch.Builtin.Bool (pand, por)
+import Plutarch.Internal.Parse (pparseData)
 import Plutarch.Prelude
 import Plutarch.Test.Golden (goldenEval, goldenEvalFail, goldenGroup, plutarchGolden)
 import Test.Tasty (TestTree, testGroup)
@@ -67,6 +68,11 @@ tests =
             , goldenEval "pcond-2" (pcond [(pconstant @PInteger 1 #< 2, pconstant @PInteger 1)] 2)
             , goldenEval "direct-3" (pif (pconstant @PInteger 1 #< 2) (pconstant @PInteger 1) (pif (pconstant @PInteger 2 #< 3) 2 3))
             , goldenEval "pcond-3" (pcond [(pconstant @PInteger 1 #< 2, pconstant @PInteger 1), (pconstant @PInteger 2 #< 3, 2)] 3)
+            ]
+        , goldenGroup
+            "PValidateData"
+            [ goldenEval "pparseData (PFalse)" (pparseData @PBool . pforgetData $ pconstrBuiltin # 0 # pcon PNil)
+            , goldenEval "pparseData (PTrue)" (pparseData @PBool . pforgetData $ pconstrBuiltin # 1 # pcon PNil)
             ]
         ]
     ]
