@@ -28,11 +28,7 @@ data PCredential (s :: S)
       PIsData
     , -- | @since 2.0.0
       PEq
-    , -- FIXME: figure out what's the deal here
-      -- , -- | @since 2.0.0
-      --   POrd
-
-      -- | @since 2.0.0
+    , -- | @since 2.0.0
       PShow
     )
   deriving
@@ -42,6 +38,23 @@ data PCredential (s :: S)
       PValidateData
     )
     via (DeriveAsDataStruct PCredential)
+
+-- | @since 2.0.0
+instance POrd PCredential where
+  cred1 #< cred2 = pmatch cred1 $ \case
+    PPubKeyCredential pkh1 -> pmatch cred2 $ \case
+      PPubKeyCredential pkh2 -> pfromData pkh1 #< pfromData pkh2
+      _ -> pcon PTrue
+    PScriptCredential psh1 -> pmatch cred2 $ \case
+      PScriptCredential psh2 -> pfromData psh1 #< pfromData psh2
+      _ -> pcon PFalse
+  cred1 #<= cred2 = pmatch cred1 $ \case
+    PPubKeyCredential pkh1 -> pmatch cred2 $ \case
+      PPubKeyCredential pkh2 -> pfromData pkh1 #<= pfromData pkh2
+      _ -> pcon PTrue
+    PScriptCredential psh1 -> pmatch cred2 $ \case
+      PScriptCredential psh2 -> pfromData psh1 #<= pfromData psh2
+      _ -> pcon PFalse
 
 -- | @since 3.3.0
 deriving via
