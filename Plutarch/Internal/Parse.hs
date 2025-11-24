@@ -218,10 +218,6 @@ instance {-# OVERLAPPABLE #-} PValidateData a => PValidateData (PBuiltinList a) 
         PNil -> done
         PCons h t -> self # t # pwithValidated @a h done
 
-{-
-go self ell done = pchooseListBuiltin # ell # done #$ pheadTailBuiltin ell $ \h t ->
-  self # t # pwithValidated @a h done -}
-
 {- | Checks that we have a @Map@. Furthermore, checks that every key-value pair
 validates as per @a@ and @b@. Takes precedence over the overlapping
 @PValidateData (PBuiltinList a)@ instance.
@@ -243,11 +239,6 @@ instance {-# OVERLAPPING #-} (PValidateData a, PValidateData b) => PValidateData
         PCons h t ->
           pmatch h $ \(PBuiltinPair fst snd) ->
             self # t # (pwithValidated @a fst . pwithValidated @b snd $ done)
-
-{-
-go self mp done = pforce $ pchooseListBuiltin # mp # pdelay done #$ pdelay $ pmatch (pheadBuiltin # mp) $ \(PBuiltinPair fst snd) ->
-  plet (ptailBuiltin # mp) $ \t ->
-    self # t # (pwithValidated @a fst . pwithValidated @b snd $ done) -}
 
 {- | Checks that we have a @List@.
 
