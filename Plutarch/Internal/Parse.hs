@@ -38,7 +38,9 @@ import Plutarch.Builtin.Data (
   pheadBuiltin,
   pheadTailBuiltin,
  )
-import Plutarch.Builtin.Integer (PInteger, pconstantInteger)
+import Plutarch.Builtin.Integer (PInteger)
+import Plutarch.Builtin.Opaque (popaque)
+import Plutarch.Internal.Case (punsafeCase)
 import Plutarch.Internal.Eq ((#==))
 import Plutarch.Internal.Fix (pfix)
 import Plutarch.Internal.IsData (PIsData, pfromData)
@@ -166,16 +168,16 @@ second field of @Constr@ is not checked at all.
 @since 1.12.0
 -}
 instance PValidateData PBool where
-  pwithValidated opq x = pmatch (pasConstr # opq) $ \(PBuiltinPair i' _) ->
-    plet i' $ \i ->
-      pif
-        (i #== pconstantInteger 0)
-        x
-        ( pif
-            (i #== pconstantInteger 1)
-            x
-            perror
-        )
+  -- Note (Koz, 24/11/2025): This slightly weird implementation relies on `Case`
+  -- over `Integer` treating the first 'arm' of the match as `0`, the second as
+  -- `1`, and so on. Since we error on anything other than those two, we can use
+  -- this for speed.
+  pwithValidated opq x =
+    punsafeCase
+      (pmatch (pasConstr # opq) $ \(PBuiltinPair i _) -> i)
+      [ popaque x
+      , popaque x
+      ]
 
 {- | Checks that we have a @Constr@ with a second field of at least length 2.
 Furthermore, checks that the first element validates as per @a@, while the
