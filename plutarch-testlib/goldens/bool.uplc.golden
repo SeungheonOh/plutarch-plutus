@@ -37,3 +37,17 @@ pcond.direct-3 program
 pcond.pcond-3 program
   1.1.0
   (case (lessThanInteger 1 2) [(case (lessThanInteger 2 3) [3, 2]), 1])
+PValidateData.pparseData (PFalse) program
+  1.1.0
+  ((\!0 ->
+      case
+        (case (unConstrData (constrData 0 !1)) [(\!0 !0 -> !2)])
+        [(constrData 0 !1), (constrData 0 !1)])
+     [])
+PValidateData.pparseData (PTrue) program
+  1.1.0
+  ((\!0 ->
+      case
+        (case (unConstrData (constrData 1 !1)) [(\!0 !0 -> !2)])
+        [(constrData 1 !1), (constrData 1 !1)])
+     [])
