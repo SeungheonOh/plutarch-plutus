@@ -336,8 +336,8 @@ prfoldArray f x arr = pmatch arr $ \(PPullArray k) ->
     pdec :: forall (s :: S). Term s (PInteger :--> PInteger)
     pdec = phoistAcyclic $ plam (subtract 1)
 
-{- | Convert a pull array to a builtin list. This uses 'prfoldArray' underneath, and is
-provided for convenience only.
+{- | Convert a pull array to a builtin list. Prefer using this function to
+either kind of fold, as it is faster.
 
 If you want to construct a builtin /array/ instead, use this function
 together with 'plistToArray'.
@@ -351,10 +351,20 @@ ppullArrayToList ::
   PlutusType (PBuiltinList a) =>
   Term s (PPullArray a) ->
   Term s (PBuiltinList a)
-ppullArrayToList = prfoldArray (plam $ \xs x -> pconsBuiltin # x # xs) (pcon PNil)
+ppullArrayToList arr = pmatch arr $ \(PPullArray k) ->
+  k # plam (\len h -> go # h # pcon PNil # (pupcast len - 1))
+  where
+    go ::
+      forall (s' :: S).
+      Term s' ((PInteger :--> a) :--> PBuiltinList a :--> PInteger :--> PBuiltinList a)
+    go = phoistAcyclic $ pfix $ \self -> plam $ \ix acc curr ->
+      pif
+        (curr #== (-1))
+        acc
+        (self # ix # (pconsBuiltin # (ix # curr) # acc) # (curr - 1))
 
-{- | Convert a pull array to a 'PList'. This uses 'prfoldArray' underneath, and
-is provided for convenience only.
+{- | Convert a pull array to a 'PList'. Prefer using this function to either
+kind of fold, as it is faster.
 
 \(\Theta(n)\) space and time complexity.
 
@@ -364,7 +374,17 @@ ppullArrayToSOPList ::
   forall (a :: S -> Type) (s :: S).
   Term s (PPullArray a) ->
   Term s (PList a)
-ppullArrayToSOPList = prfoldArray (plam $ \xs x -> pcon . PSCons x $ xs) (pcon PSNil)
+ppullArrayToSOPList arr = pmatch arr $ \(PPullArray k) ->
+  k # plam (\len h -> go # h # pcon PSNil # (pupcast len - 1))
+  where
+    go ::
+      forall (s' :: S).
+      Term s' ((PInteger :--> a) :--> PList a :--> PInteger :--> PList a)
+    go = phoistAcyclic $ pfix $ \self -> plam $ \ix acc curr ->
+      pif
+        (curr #== (-1))
+        acc
+        (self # ix # (pcon . PSCons (ix # curr) $ acc) # (curr - 1))
 
 -- Helpers
 
