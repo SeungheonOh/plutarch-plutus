@@ -315,10 +315,16 @@ pfoldArray ::
   Term s (PPullArray a) ->
   Term s b
 pfoldArray f x arr = pmatch arr $ \(PPullArray k) ->
-  k # plam (\len h -> ploop # (pke # f # h) # x # 0 # pupcast len # pinc)
+  k # plam (\len h -> go # f # h # pupcast len # x # 0)
   where
-    pinc :: forall (s :: S). Term s (PInteger :--> PInteger)
-    pinc = phoistAcyclic $ plam (+ 1)
+    go ::
+      forall (s' :: S).
+      Term s' ((b :--> a :--> b) :--> (PInteger :--> a) :--> PInteger :--> b :--> PInteger :--> b)
+    go = phoistAcyclic $ pfix $ \self -> plam $ \combine get limit acc ix ->
+      pif
+        (ix #== limit)
+        acc
+        (self # combine # get # limit # (combine # acc #$ get # ix) # (ix + 1))
 
 {- | As 'pfoldArray', but from the /highest/ index working /downward/.
 
@@ -331,10 +337,16 @@ prfoldArray ::
   Term s (PPullArray a) ->
   Term s b
 prfoldArray f x arr = pmatch arr $ \(PPullArray k) ->
-  k # plam (\len h -> ploop # (pke # f # h) # x # (pupcast len - 1) # (-1) # pdec)
+  k # plam (\len h -> go # f # h # x # (pupcast len - 1))
   where
-    pdec :: forall (s :: S). Term s (PInteger :--> PInteger)
-    pdec = phoistAcyclic $ plam (subtract 1)
+    go ::
+      forall (s' :: S).
+      Term s' ((b :--> a :--> b) :--> (PInteger :--> a) :--> b :--> PInteger :--> b)
+    go = phoistAcyclic $ pfix $ \self -> plam $ \combine get acc ix ->
+      pif
+        (ix #== (-1))
+        acc
+        (self # combine # get # (combine # acc #$ get # ix) # (ix - 1))
 
 {- | Convert a pull array to a builtin list. Prefer using this function to
 either kind of fold, as it is faster.
@@ -357,11 +369,11 @@ ppullArrayToList arr = pmatch arr $ \(PPullArray k) ->
     go ::
       forall (s' :: S).
       Term s' ((PInteger :--> a) :--> PBuiltinList a :--> PInteger :--> PBuiltinList a)
-    go = phoistAcyclic $ pfix $ \self -> plam $ \ix acc curr ->
+    go = phoistAcyclic $ pfix $ \self -> plam $ \get acc ix ->
       pif
-        (curr #== (-1))
+        (ix #== (-1))
         acc
-        (self # ix # (pconsBuiltin # (ix # curr) # acc) # (curr - 1))
+        (self # get # (pconsBuiltin # (get # ix) # acc) # (ix - 1))
 
 {- | Convert a pull array to a 'PList'. Prefer using this function to either
 kind of fold, as it is faster.
@@ -380,25 +392,8 @@ ppullArrayToSOPList arr = pmatch arr $ \(PPullArray k) ->
     go ::
       forall (s' :: S).
       Term s' ((PInteger :--> a) :--> PList a :--> PInteger :--> PList a)
-    go = phoistAcyclic $ pfix $ \self -> plam $ \ix acc curr ->
+    go = phoistAcyclic $ pfix $ \self -> plam $ \get acc ix ->
       pif
-        (curr #== (-1))
+        (ix #== (-1))
         acc
-        (self # ix # (pcon . PSCons (ix # curr) $ acc) # (curr - 1))
-
--- Helpers
-
--- General index-stepping loop, specifying a start and end, as well as step size
-ploop ::
-  forall (a :: S -> Type) (s :: S).
-  Term s ((a :--> PInteger :--> a) :--> a :--> PInteger :--> PInteger :--> (PInteger :--> PInteger) :--> a)
-ploop = phoistAcyclic $ pfix $ \self -> plam $ \combine acc currIx limit stepIx ->
-  pif (currIx #== limit) acc (self # combine # (combine # acc # currIx) # (stepIx # currIx) # limit # stepIx)
-
--- Kereru
---
--- Effectively 'BCD'. Compare to dove: '\f x g y -> f x (g y)'
-pke ::
-  forall (a :: S -> Type) (b :: S -> Type) (c :: S -> Type) (d :: S -> Type) (s :: S).
-  Term s ((a :--> b :--> c) :--> (d :--> b) :--> a :--> d :--> c)
-pke = phoistAcyclic $ plam $ \f g x y -> f # x #$ g # y
+        (self # get # (pcon . PSCons (get # ix) $ acc) # (ix - 1))
