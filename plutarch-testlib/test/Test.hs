@@ -13,6 +13,7 @@ import Plutarch.Test.Suite.Plutarch.Monadic qualified as Monadic
 import Plutarch.Test.Suite.Plutarch.PLam qualified as PLam
 import Plutarch.Test.Suite.Plutarch.POrd qualified as POrd
 import Plutarch.Test.Suite.Plutarch.Pair qualified as Pair
+import Plutarch.Test.Suite.Plutarch.Parse qualified as Parse
 import Plutarch.Test.Suite.Plutarch.Positive qualified as Positive
 import Plutarch.Test.Suite.Plutarch.Rational qualified as Rational
 import Plutarch.Test.Suite.Plutarch.Recursion qualified as Recursion
@@ -25,7 +26,7 @@ import Plutarch.Test.Suite.Plutarch.Unit qualified as Unit
 import Plutarch.Test.Suite.Plutarch.Unroll qualified as Unroll
 import Plutarch.Test.Suite.Plutarch.Uplc qualified as Uplc
 import Plutarch.Test.Suite.PlutarchLedgerApi.AssocMap qualified as AssocMap
-import Plutarch.Test.Suite.PlutarchLedgerApi.Parse qualified as Parse
+import Plutarch.Test.Suite.PlutarchLedgerApi.Parse qualified as PLAParse
 import Plutarch.Test.Suite.PlutarchLedgerApi.Regressions qualified as Regressions
 import Plutarch.Test.Suite.PlutarchLedgerApi.Utils qualified as Utils
 import Plutarch.Test.Suite.PlutarchLedgerApi.V1 qualified as V1
@@ -54,6 +55,7 @@ main = do
         , PLam.tests
         , POrd.tests
         , Pair.tests
+        , Parse.tests
         , Positive.tests
         , Rational.tests
         , Recursion.tests
@@ -76,7 +78,7 @@ main = do
             , V1.tests
             , V2.tests
             , V3.tests
-            , Parse.tests
+            , PLAParse.tests
             ]
         , testGroup "Regressions" Regressions.tests
         ]
