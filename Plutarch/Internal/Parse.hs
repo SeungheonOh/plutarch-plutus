@@ -318,8 +318,7 @@ instance
   {-# INLINEABLE pwithValidated #-}
   pwithValidated opq x = plet (pasConstr # opq) $ \p ->
     pmatch p $ \(PBuiltinPair ix fields) ->
-      punsafeCase ix $ case SOP.shape @[S -> Type] @struct of
-        outerShape -> goOuter fields outerShape x
+      punsafeCase ix $ goOuter fields (SOP.shape @[S -> Type] @struct) x
     where
       goOuter ::
         forall (wOuter :: [[S -> Type]]) (s :: S) (r :: S -> Type).
@@ -330,28 +329,19 @@ instance
         [Term s POpaque]
       goOuter ell outerShape x = case outerShape of
         SOP.ShapeNil -> []
-        SOP.ShapeCons @ys @y restShape -> doInner @y ell x : goOuter ell restShape x
-      doInner ::
+        SOP.ShapeCons @_ @y restShape -> popaque (goInner ell (SOP.shape @_ @y) x) : goOuter ell restShape x
+      goInner ::
         forall (wInner :: [S -> Type]) (s :: S) (r :: S -> Type).
         SOP.All PValidateData wInner =>
-        Term s (PBuiltinList PData) ->
-        Term s r ->
-        Term s POpaque
-      doInner ell x = case SOP.shape @(S -> Type) @wInner of
-        SOP.ShapeNil -> popaque x
-        SOP.ShapeCons @zs @z restInnerShape -> popaque $ goInner @z ell restInnerShape x
-      goInner ::
-        forall (a :: S -> Type) (wInner :: [S -> Type]) (s :: S) (r :: S -> Type).
-        (PValidateData a, SOP.All PValidateData wInner) =>
         Term s (PBuiltinList PData) ->
         SOP.Shape wInner ->
         Term s r ->
         Term s r
-      goInner ell aShape x =
-        pheadTailBuiltin ell $ \h t ->
-          pwithValidated @a h $ case aShape of
-            SOP.ShapeNil -> x
-            SOP.ShapeCons @ys @y restShape -> goInner @y t restShape x
+      goInner ell aShape x = case aShape of
+        SOP.ShapeNil -> x
+        SOP.ShapeCons @_ @y SOP.ShapeNil -> pwithValidated @y (pheadBuiltin # ell) x
+        SOP.ShapeCons @_ @y restShape -> pheadTailBuiltin ell $ \h t ->
+          pwithValidated @y h $ goInner t restShape x
 
 {- | Helper to define a do-nothing instance of 'PValidateData'. Useful when
 defining an instance for a complex type where we want to validate some parts,
