@@ -20,6 +20,7 @@ import Plutarch.Array (
   ppullArrayToSOPList,
   pzipWithArray,
  )
+import Plutarch.Internal.Case (punsafeCase)
 import Plutarch.Internal.Lift (LiftError (CouldNotDecodeData, OtherLiftError))
 import Plutarch.Internal.Term (
   Config (NoTracing, Tracing),
@@ -582,31 +583,24 @@ instance PLiftable PASum where
 instance PTryFrom PData (PAsData PASum) where
   ptryFrom' opq = runTermCont $ do
     p <- tcont $ plet (pasConstr # opq)
-    ix <- tcont $ plet (pfstBuiltin # p)
-    fields <- tcont $ plet (psndBuiltin # p)
+    PBuiltinPair ix fields <- tcont $ pmatch p
     pure
-      ( pif
-          (ix #== 0)
-          ( unTermCont $ do
+      ( punsafeCase
+          ix
+          [ -- POne
+            unTermCont $ do
               _ <- tcont $ ptryFrom @(PAsData PByteString) (pheadBuiltin # fields)
               pure . punsafeCoerce $ opq
-          )
-          ( pif
-              (ix #== 1)
-              ( unTermCont $ do
-                  _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # fields)
-                  pure . punsafeCoerce $ opq
-              )
-              ( pif
-                  (ix #== 2)
-                  ( unTermCont $ do
-                      _ <- tcont $ ptryFrom @(PAsData PByteString) (pheadBuiltin # fields)
-                      _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin #$ ptailBuiltin # fields)
-                      pure . punsafeCoerce $ opq
-                  )
-                  perror
-              )
-          )
+          , -- PTwo
+            unTermCont $ do
+              _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # fields)
+              pure . punsafeCoerce $ opq
+          , -- PThree
+            pheadTailBuiltin fields $ \h t -> unTermCont $ do
+              _ <- tcont $ ptryFrom @(PAsData PByteString) h
+              _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # t)
+              pure . punsafeCoerce $ opq
+          ]
       , ()
       )
 
@@ -632,11 +626,16 @@ instance PLiftable PAProduct where
 instance PTryFrom PData (PAsData PAProduct) where
   ptryFrom' opq = runTermCont $ do
     ell <- tcont $ plet (pasList # opq)
-    _ <- tcont $ ptryFrom @(PAsData PByteString) (pheadBuiltin # ell)
-    t1 <- tcont $ plet (ptailBuiltin # ell)
-    _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # t1)
-    _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin #$ ptailBuiltin # t1)
-    pure (punsafeCoerce opq, ())
+    pure
+      ( pheadTailBuiltin ell $ \h1 t1 ->
+          pheadTailBuiltin t1 $ \h2 t2 ->
+            unTermCont $ do
+              _ <- tcont $ ptryFrom @(PAsData PByteString) h1
+              _ <- tcont $ ptryFrom @(PAsData PInteger) h2
+              _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # t2)
+              pure . punsafeCoerce $ opq
+      , ()
+      )
 
 data PATag (s :: S) = PTagOne | PTagTwo | PTagThree
   deriving stock (Generic)
@@ -662,14 +661,12 @@ instance PTryFrom PData (PAsData PATag) where
   ptryFrom' opq = runTermCont $ do
     i <- tcont $ plet (pasInt # opq)
     pure
-      ( pif
-          (i #< 0)
-          perror
-          ( pif
-              (i #>= 3)
-              perror
-              (punsafeCoerce opq)
-          )
+      ( punsafeCase
+          i
+          [ popaque $ punsafeCoerce opq
+          , popaque $ punsafeCoerce opq
+          , popaque $ punsafeCoerce opq
+          ]
       , ()
       )
 
