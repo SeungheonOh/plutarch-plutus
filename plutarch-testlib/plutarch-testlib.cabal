@@ -114,6 +114,7 @@ test-suite tests
     Plutarch.Test.Suite.Plutarch.Maybe
     Plutarch.Test.Suite.Plutarch.Monadic
     Plutarch.Test.Suite.Plutarch.Pair
+    Plutarch.Test.Suite.Plutarch.Parse
     Plutarch.Test.Suite.Plutarch.PLam
     Plutarch.Test.Suite.Plutarch.POrd
     Plutarch.Test.Suite.Plutarch.Positive
