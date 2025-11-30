@@ -1,6 +1,7 @@
 module Main (main) where
 
 import GHC.IO.Encoding (setLocaleEncoding, utf8)
+import Plutarch.Test.Suite.Plutarch.Array qualified as Array
 import Plutarch.Test.Suite.Plutarch.Bool qualified as Bool
 import Plutarch.Test.Suite.Plutarch.ByteString qualified as ByteString
 import Plutarch.Test.Suite.Plutarch.DeriveAsTag as DeriveAsTag
@@ -43,7 +44,8 @@ main = do
   defaultMain . adjustOption moreTests . testGroup "Tests" $
     [ testGroup
         "Plutarch"
-        [ Bool.tests
+        [ Array.tests
+        , Bool.tests
         , ByteString.tests
         , DeriveAsTag.tests
         , Either.tests
