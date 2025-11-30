@@ -13,7 +13,7 @@ import Data.Vector.Strict qualified as Vector
 import GHC.Generics (Generic)
 import Generics.SOP qualified as SOP
 import Plutarch.Array (
-  pfoldlArray,
+  pfoldArray,
   pfromArray,
   pmapArray,
   ppullArrayToList,
@@ -264,7 +264,7 @@ arrayBenches =
   , bcompare "$(NF-1) == \"Array\" && $NF == \"map-fold\"" $
       bench
         "with PPullArray"
-        ( precompileTerm (plam $ \x -> pfoldlArray ptimes 1 . pmapArray pinc . pfromArray $ x)
+        ( precompileTerm (plam $ \x -> pfoldArray ptimes 1 . pmapArray pinc . pfromArray $ x)
             # pconstant @(PArray PInteger) iota
         )
   ]

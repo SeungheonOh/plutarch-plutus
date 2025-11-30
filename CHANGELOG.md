@@ -8,6 +8,7 @@
 * `pheadTailBuiltin`, for use when the list is known non-empty and both the head
   and tail are needed
 * `punsafeCase`, to give access to the UPLC `Case` construct more conveniently
+* `prfoldArray`, which folds a pull array from highest-to-lowest indexes
 
 ## Changed
 
@@ -22,6 +23,7 @@
   cases.
 * `Plutarch.Internal.Parse` definitions are now re-exported from
   `Plutarch.Prelude`. 
+* `pfoldlArray` renamed to `pfoldArray`.
 
 ## Removed
 
