@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE NoPartialTypeSignatures #-}
 
+-- Needed because ImpredicativeTypes is too stupid to figure out
+-- closed-Term-producing functions
+{-# HLINT ignore "Avoid lambda" #-}
+
 module Plutarch.Test.Suite.Plutarch.Array (tests) where
 
 import Plutarch.Array (
@@ -22,7 +26,9 @@ import Plutarch.Array (
  )
 import Plutarch.Prelude
 import Plutarch.Test.Golden (goldenEval, plutarchGolden)
+import Plutarch.Test.QuickCheck (propEvalEqual)
 import Plutarch.Unsafe (punsafeCoerce)
+import Test.QuickCheck.Instances ()
 import Test.Tasty (TestTree, testGroup)
 
 tests :: TestTree
@@ -56,6 +62,33 @@ tests =
         , goldenEval "pmap then ptake" (ptakeArray (unsafeNat 4) . pmapArray plusTen $ sample)
         , goldenEval "pmap then pzipWith" (pzipWithArray (plam $ flip pscaleNatural) (pmapArray plusTen sample) (pmapArray (plam (+ 10)) sample2))
         , goldenEval "pmap then pfold" (pfoldArray (plam $ \acc x -> acc #- x) 0 . pmapArray (plam (+ 10)) $ sample2)
+        ]
+    , testGroup
+        "Properties"
+        [ propEvalEqual
+            "fold direction doesn't matter with commutative monoid"
+            (\arr -> pfoldArray (plam (#+)) 0 $ pfromArray $ pconstant @(PArray PInteger) arr)
+            (\arr -> prfoldArray (plam (#+)) 0 $ pfromArray $ pconstant @(PArray PInteger) arr)
+        , propEvalEqual
+            "map f . map g = map (f . g)"
+            (\arr -> ppullArrayToList $ pmapArray (plam $ \x -> (x + 1) * 2) $ pfromArray $ pconstant @(PArray PInteger) arr)
+            (\arr -> ppullArrayToList $ pmapArray (plam (* 2)) $ pmapArray (plam (+ 1)) $ pfromArray $ pconstant @(PArray PInteger) arr)
+        , propEvalEqual
+            "imap f (generate n g) = zipWith f (generate n id) (generate n g)"
+            (\n -> ppullArrayToList $ pimapArray (plam (#-)) $ pgenerate (pconstant n) (plam (* 2)))
+            (\n -> ppullArrayToList $ pzipWithArray (plam (#-)) (pgenerate (pconstant n) (plam id)) (pgenerate (pconstant n) (plam (* 2))))
+        , propEvalEqual
+            "take n . take m = take (min n m)"
+            (\(arr, n, m) -> ppullArrayToList $ ptakeArray (pmin (pconstant n) (pconstant m)) $ pfromArray $ pconstant @(PArray PInteger) arr)
+            (\(arr, n, m) -> ppullArrayToList $ ptakeArray (pconstant n) $ ptakeArray (pconstant m) $ pfromArray $ pconstant @(PArray PInteger) arr)
+        , propEvalEqual
+            "drop n . drop m = drop (n + m)"
+            (\(arr, n, m) -> ppullArrayToList $ pdropArray (pconstant n #+ pconstant m) $ pfromArray $ pconstant @(PArray PInteger) arr)
+            (\(arr, n, m) -> ppullArrayToList $ pdropArray (pconstant n) $ pdropArray (pconstant m) $ pfromArray $ pconstant @(PArray PInteger) arr)
+        , propEvalEqual
+            "zipWith f (generate n g) (generate m h) = generate (min n m) (\\i -> f (g i) (h i))"
+            (\(n, m) -> ppullArrayToList $ pzipWithArray (plam (#-)) (pgenerate (pconstant n) (plam (+ 1))) $ pgenerate (pconstant m) (plam (* 2)))
+            (\(n, m) -> ppullArrayToList $ pgenerate (pmin (pconstant n) (pconstant m)) (plam $ \i -> (i + 1) #- (i * 2)))
         ]
     ]
 

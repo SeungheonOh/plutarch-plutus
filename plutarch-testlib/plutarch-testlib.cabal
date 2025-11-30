@@ -154,6 +154,7 @@ test-suite tests
     , plutus-tx
     , prettyprinter
     , QuickCheck
+    , quickcheck-instances
     , serialise
     , sop-core
     , tasty
