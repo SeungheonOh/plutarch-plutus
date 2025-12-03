@@ -613,7 +613,7 @@ punionWithData = phoistAcyclic $
 
 {- | Get the quantity of the given currency in the 'PSortedValue'.
 
-@since 2.1.1
+@since wip
 -}
 pvalueOf :: forall (s :: S). Term s (PSortedValue :--> PCurrencySymbol :--> PTokenName :--> PInteger)
 pvalueOf = phoistAcyclic $

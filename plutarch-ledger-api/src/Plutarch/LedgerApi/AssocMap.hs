@@ -1160,7 +1160,7 @@ pnull = plam $ \m -> PPrelude.pnull # pto (pto m)
 
 {- | Look up the given key in a 'PSortedMap'.
 
-@since 2.1.1
+@since wip
 -}
 plookup ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -1176,7 +1176,7 @@ plookup = phoistAcyclic $
 
 {- | As 'plookup', except over Data representation.
 
-@since 2.1.1
+@since wip
 -}
 plookupData ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -1187,7 +1187,7 @@ plookupData =
 {- | Look up the given key data in a 'PSortedMap', applying the given function
 to the found key-value pair.
 
-@since 2.1.1
+@since wip
 -}
 plookupDataWith ::
   forall (k :: S -> Type) (v :: S -> Type) (x :: S -> Type) (s :: S).
@@ -1214,7 +1214,7 @@ plookupDataWith = phoistAcyclic $
 {- | Look up the given key in a 'PSortedMap', returning the default value
 if the key is absent.
 
-@since 2.1.1
+@since wip
 -}
 pfindWithDefault ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -1230,7 +1230,7 @@ pfindWithDefault =
 {- | Look up the given key in a 'PSortedMap'; return the default if the key is
 absent or apply the argument function to the value data if present.
 
-@since 2.1.1
+@since wip
 -}
 pfoldAt ::
   forall (k :: S -> Type) (v :: S -> Type) (r :: S -> Type) (s :: S).
@@ -1243,7 +1243,7 @@ pfoldAt = phoistAcyclic $
 {- | Look up the given key data in a 'PSortedMap'; return the default if the key
 is absent or apply the argument function to the value data if present.
 
-@since 2.1.1
+@since wip
 -}
 pfoldAtData ::
   forall (k :: S -> Type) (v :: S -> Type) (r :: S -> Type) (s :: S).
@@ -1263,7 +1263,7 @@ pfoldAtData = phoistAcyclic $
 
 {- | As 'plookup', but errors when the key is missing.
 
-@since 2.1.1
+@since wip
 -}
 ptryLookup ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
