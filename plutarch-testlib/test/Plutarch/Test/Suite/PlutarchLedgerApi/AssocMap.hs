@@ -222,7 +222,7 @@ tests =
     , testProperty "lookup = plookup" $
         checkHaskellUnsortedPMapEquivalent2
           PlutusMap.lookup
-          (plam $ \k m -> pmaybeToMaybeData #$ AssocMap.plookup # k # m)
+          (plam $ \k m -> pmaybeToMaybeData #$ AssocMap.plookup # k # AssocMap.punsafeCoerceToSortedMap m)
     , testProperty "lookup = plookupData" $
         checkHaskellUnsortedPMapEquivalent2
           PlutusMap.lookup
@@ -231,7 +231,7 @@ tests =
                 #$ (pmapMaybe # plam pfromData)
                 #$ AssocMap.plookupData
                 # pdata k
-                # m
+                # AssocMap.punsafeCoerceToSortedMap m
           )
     , testProperty "singleton = psingleton" $
         checkHaskellEquivalent2 @PInteger @PInteger @(PUnsortedMap PInteger PInteger)

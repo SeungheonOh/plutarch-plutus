@@ -855,7 +855,7 @@ pfindDatum ::
   Term s (PDatumHash :--> PTxInfo :--> PMaybe PDatum)
 pfindDatum = phoistAcyclic $ plam $ \dh txI ->
   pmatch txI $ \tx ->
-    AssocMap.plookup # dh # pfromData (ptxInfo'data tx)
+    AssocMap.plookup # dh # AssocMap.punsafeCoerceToSortedMap (pfromData (ptxInfo'data tx))
 
 {- | Find the hash of a datum if it's part of the pending transaction's hashes.
 
