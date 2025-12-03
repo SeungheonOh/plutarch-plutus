@@ -99,11 +99,17 @@ instance PValidateData PMintValue where
     plet (pfromData $ pparseData @PSortedValue opq) $ \value ->
       pif
         ( (pnot #$ phasZeroAdaEntry # value)
-            -- TODO: rewrite this check without adding fake ADA
-            #|| (phasZeroTokenQuantities #$ pforgetSorted $ value <> (psingletonSortedValue # padaSymbol # padaToken # 1))
+            #|| (phasZeroTokenQuantities #$ pforgetSorted $ dropAdaEntry # value)
         )
         perror
         x
+    where
+      dropAdaEntry :: forall (s :: S). Term s (PSortedValue :--> PSortedValue)
+      dropAdaEntry =
+        plam $ \value ->
+          pmatch (pto $ pto $ pto value) $ \case
+            PNil -> value
+            PCons _ xs -> punsafeDowncast $ punsafeDowncast $ punsafeDowncast xs
 
 {- | Construct an empty 'PMintValue' with a zero Ada entry.
 
