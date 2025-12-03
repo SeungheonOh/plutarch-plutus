@@ -593,8 +593,6 @@ punionWithData = phoistAcyclic $
 ----------------------------------------------------------------------
 -- Queries
 
--- TODO: restrict 'pvalueOf' to 'PSortedValue's
-
 {- | Get the quantity of the given currency in the 'PValue'.
 
 @since 2.1.1
