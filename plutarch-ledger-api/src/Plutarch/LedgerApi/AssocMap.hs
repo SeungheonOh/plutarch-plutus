@@ -24,6 +24,7 @@ module Plutarch.LedgerApi.AssocMap (
 
   -- ** Transformation
   passertSorted,
+  ppromoteToSortedMap,
   pforgetSorted,
   pmap,
   pmapData,
@@ -267,7 +268,7 @@ instance
   where
   ptryFrom' opq = runTermCont $ do
     (opq', _) <- tcont $ ptryFrom @(PAsData (PUnsortedMap k v)) opq
-    unwrapped <- tcont $ plet . papp passertSorted . pfromData $ opq'
+    unwrapped <- tcont $ plet . papp ppromoteToSortedMap . pfromData $ opq'
     pure (pdata unwrapped, ())
 
 {- | Checks that we have a valid 'PSortedMap' with keys sorted in ascending
@@ -280,7 +281,7 @@ instance (PValidateData k, PValidateData v, POrd k, PIsData k) => PValidateData 
     -- the PUnsortedMap validation should run before the sortedness check
     pwithValidated @(PUnsortedMap k v) opq $
       plet
-        (passertSorted #$ pfromData $ punsafeCoerce @(PAsData (PUnsortedMap k v)) opq)
+        (ppromoteToSortedMap #$ pfromData $ punsafeCoerce @(PAsData (PUnsortedMap k v)) opq)
         (const x)
 
 ----------------------------------------------------------------------
@@ -382,14 +383,13 @@ psortedMapFromFoldable = foldl' go pempty
 ----------------------------------------------------------------------
 -- Transformation
 
--- TODO: Rename this, because the name is confusing.
-
 {- | Attempt to promote `PUnsortedMap` to `PSortedMap`. This function checks
-that the keys in the input map are in ascending order and fails with an error if
-they are not.
+that the keys in the input map are in strictly ascending order and fails with
+an error if they are not. Duplicate keys are not allowed.
 
 @since 2.0.0
 -}
+{-# DEPRECATED passertSorted "Use ppromoteToSortedMap instead" #-}
 passertSorted ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
   ( POrd k
@@ -408,13 +408,27 @@ passertSorted =
                       pif
                         (badKey # k)
                         (ptraceInfoError "unsorted map")
-                        (self # xs # plam (#< k))
+                        (self # xs # plam (#<= k))
             )
             -- this is actually the empty map so we can
             -- safely assume that it is sorted
             (const . plam . const . punsafeDowncast $ pto m)
             # pto (pto m)
             # plam (const $ pcon PFalse)
+
+{- | Attempt to promote `PUnsortedMap` to `PSortedMap`. This function checks
+that the keys in the input map are in strictly ascending order and fails with
+an error if they are not. Duplicate keys are not allowed.
+
+@since wip
+-}
+ppromoteToSortedMap ::
+  forall (k :: S -> Type) (v :: S -> Type) (s :: S).
+  ( POrd k
+  , PIsData k
+  ) =>
+  Term s (PUnsortedMap k v :--> PSortedMap k v)
+ppromoteToSortedMap = passertSorted
 
 {- | Forget the knowledge that keys were sorted.
 

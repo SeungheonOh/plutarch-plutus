@@ -211,11 +211,11 @@ tests =
             (pconstant @PBool True)
         ]
     , propEval "Ledger AssocMap is sorted (sanity check for punsafeCoerce below)" $
-        \(m :: PlutusMap.Map Integer Integer) -> AssocMap.passertSorted # pconstant @(PUnsortedMap PInteger PInteger) m
+        \(m :: PlutusMap.Map Integer Integer) -> AssocMap.ppromoteToSortedMap # pconstant @(PUnsortedMap PInteger PInteger) m
     , adjustOption (fewerTests 4) $
-        propEval "passertSorted . psortedMapFromFoldable" $
+        propEval "ppromoteToSortedMap . psortedMapFromFoldable" $
           \(m :: UnsortedAssocMap Integer Integer) ->
-            papp AssocMap.passertSorted . AssocMap.pforgetSorted $
+            papp AssocMap.ppromoteToSortedMap . AssocMap.pforgetSorted $
               AssocMap.psortedMapFromFoldable @PInteger @PInteger
                 (map (bimap pconstant pconstant) $ PlutusMap.toList $ getUnsortedAssocMap m)
     , testProperty "null = pnull" $ checkHaskellUnsortedPMapEquivalent PlutusMap.null AssocMap.pnull
@@ -249,7 +249,7 @@ tests =
                 ( AssocMap.pfoldlWithKey
                     # plam (\acc k v -> acc + k + v)
                     # pconstant a
-                    # (AssocMap.passertSorted # pconstant @(PUnsortedMap PInteger PInteger) m)
+                    # (AssocMap.ppromoteToSortedMap # pconstant @(PUnsortedMap PInteger PInteger) m)
                 )
     , testProperty "all = pall" $
         checkHaskellUnsortedPMapEquivalent (PlutusMap.all even) (AssocMap.pall # peven)

@@ -20,6 +20,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   cases.
 * Exposed definitions from the `Plutarch.LedgerApi.V1.MintValue` and
   `Plutarch.LedgerApi.V3.MintValue` modules.
+* In `Plutarch.LedgerApi.AssocMap`, `passertSorted` has been deprecated in favor
+  of `ppromoteToSortedMap`.
+* In `Plutarch.LedgerApi.Value`, `passertSorted` has been deprecated in favor
+  of `ppromoteToSortedValue`.
+* `PSortedMap` and all sorted Value types now disallow duplicate keys.
 
 ### Removed
 
