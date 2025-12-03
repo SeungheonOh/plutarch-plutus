@@ -20,6 +20,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   cases.
 * Exposed definitions from the `Plutarch.LedgerApi.V1.MintValue` and
   `Plutarch.LedgerApi.V3.MintValue` modules.
+* Lookup-related functions now operate only on **sorted** assoc maps.
+    * Affected functions: `plookup`, `plookupData`, `plookupDataWith`,
+      `pfindWithDefault`, `pfoldAt`, `pfoldAtData`, `ptryLookup`,
+      and `pvalueOf`.
+    * Since unsorted maps may contain duplicate keys, lookups can be unreliable,
+      i.e. return only the value for the first matching key, ignoring other
+      duplicates.
 
 ### Removed
 
