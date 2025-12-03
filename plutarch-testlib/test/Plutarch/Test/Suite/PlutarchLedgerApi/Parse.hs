@@ -113,6 +113,12 @@ tests =
             , testEvalFail
                 "fails if Value is unsorted"
                 (pparseData @PSortedValue $ pforgetData $ pdata unsortedValueFixture)
+            , testEvalFail
+                "fails if Value contains duplicate currency symbols"
+                (pparseData @PSortedValue $ pforgetData $ pdata valueWithDuplicatePolicies)
+            , testEvalFail
+                "fails if Value contains duplicate token names within the same token map"
+                (pparseData @PSortedValue $ pforgetData $ pdata valueWithDuplicateTokens)
             ]
         , testGroup
             "PLedgerValue"
@@ -239,3 +245,21 @@ unsortedValueFixture =
       [ (Value.padaSymbol, AssocMap.psingleton # Value.padaToken # 1)
       , (csFixture, AssocMap.psingleton # tnFixture # 1)
       ]
+
+valueWithDuplicatePolicies :: forall (s :: S). Term s PRawValue
+valueWithDuplicatePolicies =
+  punsafeDowncast $
+    AssocMap.punsortedMapFromFoldable @PCurrencySymbol @(PUnsortedMap PTokenName PInteger) @[]
+      [ (csFixture, AssocMap.psingleton # tnFixture # 1)
+      , (csFixture, AssocMap.psingleton # tnFixture # 1)
+      ]
+
+valueWithDuplicateTokens :: forall (s :: S). Term s PRawValue
+valueWithDuplicateTokens =
+  punsafeDowncast $
+    AssocMap.psingleton
+      # csFixture
+      # AssocMap.punsortedMapFromFoldable @PTokenName @PInteger @[]
+        [ (tnFixture, 1)
+        , (tnFixture, 1)
+        ]

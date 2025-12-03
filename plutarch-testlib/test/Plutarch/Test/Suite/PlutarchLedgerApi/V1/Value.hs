@@ -20,7 +20,7 @@ tests =
     , testGroup
         "Generators sanity tests"
         [ propEval "UtxoValue is sorted" $ \val ->
-            precompileTerm PValue.passertSorted
+            precompileTerm PValue.ppromoteToSortedValue
               # pconstant (getUtxoValue val)
               -- FIXME: remove this test case or re-add passertPositive
               -- , propEval "UtxoValue is positive" $ \val ->

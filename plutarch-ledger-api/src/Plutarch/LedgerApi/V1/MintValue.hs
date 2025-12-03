@@ -26,6 +26,9 @@ import PlutusTx.Prelude qualified as PlutusTx
 {- | Represents sorted, well-formed Values with a mandatory /zero/ Ada entry,
 while all other token quantities must be non-zero.
 
+Duplicate currency symbols or duplicate token names within the same
+token map are not allowed (since wip).
+
 @since 3.5.0
 -}
 newtype PMintValue (s :: S) = PMintValue (Term s PSortedValue)

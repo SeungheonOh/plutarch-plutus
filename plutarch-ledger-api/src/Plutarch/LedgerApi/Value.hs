@@ -36,6 +36,7 @@ module Plutarch.LedgerApi.Value (
 
   -- ** Transformation
   passertSorted,
+  ppromoteToSortedValue,
   pforgetSorted,
   ptoLedgerValue,
 
@@ -82,8 +83,8 @@ import PlutusTx.Prelude qualified as PlutusTx
 
 {- | Represents Values without any guarantees.
 
-Values of this type may be unsorted, contain empty token maps, and include
-entries with zero token quantities.
+Values of this type may be unsorted, have duplicate keys, contain empty token
+maps, and include entries with zero token quantities.
 
 @since 3.5.0
 -}
@@ -128,6 +129,9 @@ deriving via
 -- PSortedValue
 
 {- | Represents sorted, well-formed Values without empty token maps.
+
+Duplicate currency symbols or duplicate token names within the same
+token map are not allowed (since wip).
 
 Compared to 'PRawValue', this type provides stronger guarantees, though
 'PSortedValue's may still contain entries with zero token quantities.
@@ -192,7 +196,7 @@ instance PlutusTx.Group (Term s PSortedValue) where
 instance PTryFrom PData (PAsData PSortedValue) where
   ptryFrom' opq = runTermCont $ do
     (opq', _) <- tcont $ ptryFrom @(PAsData PRawValue) opq
-    unwrapped <- tcont . plet . papp passertSorted . pfromData $ opq'
+    unwrapped <- tcont . plet . papp ppromoteToSortedValue . pfromData $ opq'
     pure (pdata unwrapped, ())
 
 {- | Checks that we have a valid 'PSortedValue'. The underlying map must be
@@ -203,13 +207,16 @@ sorted and contain no empty token maps.
 instance PValidateData PSortedValue where
   pwithValidated opq x =
     plet
-      (passertSorted #$ pfromData $ pparseData @PRawValue opq)
+      (ppromoteToSortedValue #$ pfromData $ pparseData @PRawValue opq)
       (const x)
 
 ----------------------------------------------------------------------
 -- PLedgerValue
 
 {- | Represents sorted, well-formed Values with a mandatory Ada entry.
+
+Duplicate currency symbols or duplicate token names within the same
+token map are not allowed (since wip).
 
 Like 'PSortedValue', but requires the presence of an Ada entry, which may have a
 zero quantity. Values of this type may still contain entries with zero token
@@ -436,6 +443,7 @@ contain empty token maps. Otherwise, the function fails with an error.
 
 @since 2.1.1
 -}
+{-# DEPRECATED passertSorted "Use ppromoteToSortedValue instead" #-}
 passertSorted :: forall (s :: S). Term s (PRawValue :--> PSortedValue)
 passertSorted = phoistAcyclic $
   plam $ \value ->
@@ -444,15 +452,25 @@ passertSorted = phoistAcyclic $
           # plam
             ( \submap ->
                 AssocMap.pnull
-                  # AssocMap.pforgetSorted (AssocMap.passertSorted # submap)
+                  # AssocMap.pforgetSorted (AssocMap.ppromoteToSortedMap # submap)
             )
           # pto value
       )
       (ptraceInfoError "Abnormal Value")
       ( punsafeDowncast
           -- punsafeCoerce since we know that the token maps are sorted at this point
-          (AssocMap.passertSorted #$ punsafeCoerce $ pto value)
+          (AssocMap.ppromoteToSortedMap #$ punsafeCoerce $ pto value)
       )
+
+{- | Attempt to promote a 'PRawValue' to 'PSortedValue'.
+
+The conversion succeeds only if the input Value is already sorted and does not
+contain empty token maps. Otherwise, the function fails with an error.
+
+@since wip
+-}
+ppromoteToSortedValue :: forall (s :: S). Term s (PRawValue :--> PSortedValue)
+ppromoteToSortedValue = passertSorted
 
 {- | Safely demote a 'PSortedValue' to a 'PRawValue'.
 
@@ -659,7 +677,7 @@ phasZeroTokenQuantities =
       # plam (AssocMap.pany # plam (0 #==) #)
       # pto value
 
-{- | Check if the given 'PSortedValue' contains a valid ADA entry.
+{- | Check if the given 'PSortedValue' contains an ADA entry (can be zero).
 
 @since wip
 -}
@@ -670,17 +688,8 @@ phasAdaEntry =
       pmatch (pto $ pto $ pto value) $ \case
         PNil -> pcon PFalse
         PCons x _ ->
-          pmatch x $ \(PBuiltinPair cs tokenMap) ->
-            -- TODO: Should we allow duplicates in the token map?
-            (cs #== padaSymbolData)
-              #&& ( pall
-                      # plam
-                        ( \p ->
-                            pmatch p $ \(PBuiltinPair token _) ->
-                              token #== pdata padaToken
-                        )
-                      # pto (pto $ pfromData tokenMap)
-                  )
+          pmatch x $ \(PBuiltinPair cs _) ->
+            cs #== padaSymbolData
 
 {- | Check if the given 'PSortedValue' has a zero ADA entry.
 
