@@ -27,6 +27,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     * Since unsorted maps may contain duplicate keys, lookups can be unreliable,
       i.e. return only the value for the first matching key, ignoring other
       duplicates.
+* In `Plutarch.LedgerApi.AssocMap`, `passertSorted` has been deprecated in favor
+  of `ppromoteToSortedMap`.
+* In `Plutarch.LedgerApi.Value`, `passertSorted` has been deprecated in favor
+  of `ppromoteToSortedValue`.
+* `PSortedMap` and all sorted Value types now disallow duplicate keys.
 
 ### Removed
 
