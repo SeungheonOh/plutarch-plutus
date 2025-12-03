@@ -92,6 +92,7 @@ library
     Plutarch.Test.Bench
     Plutarch.Test.Golden
     Plutarch.Test.Laws
+    Plutarch.Test.Methods
     Plutarch.Test.QuickCheck
     Plutarch.Test.SpecTypes
     Plutarch.Test.Unit
