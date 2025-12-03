@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 * Unit tests for `PValidateData` instances of plutarch-ledger-api types.
+* `goldenEvalWithConfig`, which allows choosing compilation configuration for a
+  golden test
 
 ## 1.0.2
 

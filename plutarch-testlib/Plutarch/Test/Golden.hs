@@ -7,6 +7,7 @@ module Plutarch.Test.Golden (
   plutarchGolden,
   goldenGroup,
   goldenEval,
+  goldenEvalWithConfig,
   goldenEvalFail,
 ) where
 
@@ -47,7 +48,7 @@ import UntypedPlutusCore.Evaluation.Machine.Cek qualified as Cek (CekEvaluationE
 -}
 data GoldenTestTree where
   GoldenTestTree :: TestName -> [GoldenTestTree] -> GoldenTestTree
-  GoldenTestTreeEval :: forall (a :: S -> Type). TestName -> (forall (s :: S). Term s a) -> GoldenTestTree
+  GoldenTestTreeEval :: forall (a :: S -> Type). Config -> TestName -> (forall (s :: S). Term s a) -> GoldenTestTree
   GoldenTestTreeEvalFail :: forall (a :: S -> Type). TestName -> (forall (s :: S). Term s a) -> GoldenTestTree
 
 {- | Convert tree of golden tests into standard Tasty `TestTree`, capturing results produced
@@ -114,7 +115,7 @@ goldenGroup = GoldenTestTree
 @since 1.0.0
 -}
 goldenEval :: forall (a :: S -> Type). TestName -> (forall (s :: S). Term s a) -> GoldenTestTree
-goldenEval = GoldenTestTreeEval
+goldenEval = GoldenTestTreeEval testConfig
 
 {- | Like `Plutarch.Test.Unit.testEvalFail` but will append to goldens created by enclosing `plutarchGolden`
 
@@ -122,6 +123,14 @@ goldenEval = GoldenTestTreeEval
 -}
 goldenEvalFail :: forall (a :: S -> Type). TestName -> (forall (s :: S). Term s a) -> GoldenTestTree
 goldenEvalFail = GoldenTestTreeEvalFail
+
+{- | As 'goldenEval', but allows setting the 'Config' to use for compiling the
+script.
+
+@since wip
+-}
+goldenEvalWithConfig :: forall (a :: S -> Type). Config -> TestName -> (forall (s :: S). Term s a) -> GoldenTestTree
+goldenEvalWithConfig = GoldenTestTreeEval
 
 -- Internals
 
@@ -133,12 +142,12 @@ mkTest (GoldenTestTree name tests) = (testGroup name tests', benchmarks)
   where
     (tests', benchmarks') = unzip $ map mkTest tests
     benchmarks = foldMap (map (first ((name <> ".") <>))) benchmarks'
-mkTest (GoldenTestTreeEval name term) = either id id $ do
-  benchmark <- mkFailed name Text.unpack $ benchmarkTerm term
+mkTest (GoldenTestTreeEval config name term) = either id id $ do
+  benchmark <- mkFailed name Text.unpack $ benchmarkTerm config term
   _ <- mkFailed name show $ result benchmark
   pure (testCase name (pure ()), [(name, benchmark)])
 mkTest (GoldenTestTreeEvalFail name term) = either id id $ do
-  benchmark <- mkFailed name Text.unpack $ benchmarkTerm term
+  benchmark <- mkFailed name Text.unpack $ benchmarkTerm testConfig term
   pure $ case result benchmark of
     Left _ -> (testCase name (pure ()), [(name, benchmark)])
     Right _ ->
@@ -146,9 +155,9 @@ mkTest (GoldenTestTreeEvalFail name term) = either id id $ do
       , [(name, benchmark)]
       )
 
-benchmarkTerm :: forall (a :: S -> Type). (forall (s :: S). Term s a) -> Either Text Benchmark
-benchmarkTerm term = do
-  compiled <- compile testConfig term
+benchmarkTerm :: forall (a :: S -> Type). Config -> (forall (s :: S). Term s a) -> Either Text Benchmark
+benchmarkTerm conf term = do
+  compiled <- compile conf term
   let (res, ExBudget cpu mem, _traces) = evalScript compiled
   pure $ Benchmark cpu mem (scriptSize compiled) res compiled
 
