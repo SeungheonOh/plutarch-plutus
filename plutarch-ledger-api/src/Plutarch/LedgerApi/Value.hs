@@ -611,11 +611,11 @@ punionWithData = phoistAcyclic $
 ----------------------------------------------------------------------
 -- Queries
 
-{- | Get the quantity of the given currency in the 'PValue'.
+{- | Get the quantity of the given currency in the 'PSortedValue'.
 
-@since 2.1.1
+@since wip
 -}
-pvalueOf :: forall (s :: S). Term s (PRawValue :--> PCurrencySymbol :--> PTokenName :--> PInteger)
+pvalueOf :: forall (s :: S). Term s (PSortedValue :--> PCurrencySymbol :--> PTokenName :--> PInteger)
 pvalueOf = phoistAcyclic $
   plam $ \value symbol token ->
     AssocMap.pfoldAt

@@ -303,7 +303,7 @@ pparseDatum ::
   PTryFrom PData (PAsData a) =>
   Term s (Scripts.PDatumHash :--> AssocMap.PUnsortedMap Scripts.PDatumHash Scripts.PDatum :--> PMaybe (PAsData a))
 pparseDatum = phoistAcyclic $ plam $ \dh datums ->
-  pmatch (AssocMap.plookup # dh # datums) $ \case
+  pmatch (AssocMap.plookup # dh # AssocMap.punsafeCoerceToSortedMap datums) $ \case
     PNothing -> pcon PNothing
     PJust datum -> pcon . PJust $ ptryFrom (pto datum) fst
 
