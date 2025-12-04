@@ -1,11 +1,15 @@
 module Plutarch.Test.Suite.Plutarch.Either (tests) where
 
-import Plutarch.Either (PEitherData)
+import Plutarch.Either (PEitherData (PDLeft, PDRight))
+import Plutarch.Evaluate (evalTerm')
+import Plutarch.Internal.Term (Config (NoTracing))
 import Plutarch.LedgerApi.V1 (PPosixTime)
 import Plutarch.Prelude
 import Plutarch.Test.Golden (goldenEval, goldenGroup, plutarchGolden)
 import Plutarch.Test.Laws (checkLedgerProperties)
+import Plutarch.Test.Methods (pmaxDefaultBetter, pminDefaultBetter)
 import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.ExpectedFailure (expectFailBecause)
 
 tests :: TestTree
 tests =
@@ -32,5 +36,20 @@ tests =
     , testGroup
         "PEitherData"
         [ checkLedgerProperties @(PEitherData PPosixTime PPosixTime)
+        , expectFailBecause "40 script bytes is worth the other benefits" $ pmaxDefaultBetter pdleft pdright
+        , expectFailBecause "40 script bytes is worth the other benefits" $ pminDefaultBetter pdleft pdright
+        , plutarchGolden
+            "Goldens"
+            "either-data"
+            [ goldenEval "lte" (pdleft #<= pdright)
+            , goldenEval "lt" (pdleft #< pdright)
+            , goldenEval "pmax" (pmax pdleft pdright)
+            , goldenEval "pmin" (pmin pdleft pdright)
+            ]
         ]
     ]
+  where
+    pdleft :: forall (s :: S). Term s (PEitherData PInteger PByteString)
+    pdleft = evalTerm' NoTracing $ pcon . PDLeft . pdata $ 10
+    pdright :: forall (s :: S). Term s (PEitherData PInteger PByteString)
+    pdright = evalTerm' NoTracing $ pcon . PDRight . pdata . pconstant $ "foo"

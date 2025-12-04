@@ -44,7 +44,9 @@ import Plutarch.Builtin.Data (
   pasConstr,
   pconstrBuiltin,
  )
-import Plutarch.Internal.Eq (PEq ((#==)))
+import Plutarch.Builtin.Opaque (popaque)
+import Plutarch.Internal.Case (punsafeCase)
+import Plutarch.Internal.Eq (PEq)
 import Plutarch.Internal.IsData (PIsData (pdataImpl, pfromDataImpl), pdata, pforgetData, pfromData)
 import Plutarch.Internal.Lift (
   DeriveDataPLiftable,
@@ -66,7 +68,7 @@ import Plutarch.Internal.Lift (
   pliftedToClosed,
  )
 import Plutarch.Internal.ListLike (pcons, phead, pnil)
-import Plutarch.Internal.Ord (POrd (pmin, (#<), (#<=)))
+import Plutarch.Internal.Ord (POrd (pmax, pmin, (#<), (#<=)))
 import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (
@@ -204,6 +206,22 @@ instance
     PDRight t1' -> pmatch t2 $ \case
       PDLeft _ -> pcon PFalse
       PDRight t2' -> pfromData t1' #< pfromData t2'
+  {-# INLINEABLE pmax #-}
+  pmax t1 t2 = pmatch t1 $ \case
+    PDLeft t1' -> pmatch t2 $ \case
+      PDLeft t2' -> pif (pfromData t1' #<= pfromData t2') t2 t1
+      PDRight _ -> t2
+    PDRight t1' -> pmatch t2 $ \case
+      PDLeft _ -> t1
+      PDRight t2' -> pif (pfromData t1' #<= pfromData t2') t2 t1
+  {-# INLINEABLE pmin #-}
+  pmin t1 t2 = pmatch t1 $ \case
+    PDLeft t1' -> pmatch t2 $ \case
+      PDLeft t2' -> pif (pfromData t1' #<= pfromData t2') t1 t2
+      PDRight _ -> t1
+    PDRight t1' -> pmatch t2 $ \case
+      PDLeft _ -> t2
+      PDRight t2' -> pif (pfromData t1' #<= pfromData t2') t1 t2
 
 -- | @since 1.10.0
 instance PlutusType (PEitherData a b) where
@@ -217,11 +235,11 @@ instance PlutusType (PEitherData a b) where
   {-# INLINEABLE pmatch' #-}
   pmatch' t f = plet (pasConstr # t) $ \asConstr ->
     pmatch asConstr $ \(PBuiltinPair tag dat) ->
-      plet (phead # dat) $ \arg ->
-        pif
-          (tag #== 0)
-          (f . PDLeft . punsafeCoerce $ arg)
-          (f . PDRight . punsafeCoerce $ arg)
+      punsafeCase
+        tag
+        [ popaque . f . PDLeft . punsafeCoerce $ phead # dat
+        , popaque . f . PDRight . punsafeCoerce $ phead # dat
+        ]
 
 -- | @since 1.10.0
 deriving via
