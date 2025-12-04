@@ -1,20 +1,28 @@
+{-# LANGUAGE NoPartialTypeSignatures #-}
+
 module Plutarch.Test.Methods (
   -- * POrd
   pmaxDefaultBetter,
+  pminDefaultBetter,
 ) where
 
+import Data.Bifunctor (first)
 import Data.ByteString.Short qualified as Short
 import Data.Kind (Type)
 import Data.SatInt (fromSatInt)
 import Data.Tagged (Tagged (Tagged))
+import Data.Text (Text)
 import Data.Text qualified as Text
 import Plutarch.Evaluate (evalScriptUnlimited)
 import Plutarch.Internal.Term (compileOptimized)
 import Plutarch.Prelude (
-  POrd (pmax, (#<=)),
+  POrd (pmax, pmin, (#<=)),
   S,
   Term,
   pif,
+  plam,
+  (#),
+  (:-->),
  )
 import Plutarch.Script (Script (unScript))
 import Plutarch.Test.Utils (typeName)
@@ -50,6 +58,26 @@ pmaxDefaultBetter arg1 arg2 = singleTest testName $ PMax arg1 arg2
     testName :: String
     testName = "pmax versus default for " <> typeName @(S -> Type) @a
 
+{- | Given two arguments to test with, compares the default implementation of
+'pmin' to the one defined for the given type. If the defined implementation
+is worse than the default in any capacity, the test fails, indicating both
+what metric (out of exunits, memory use or script size) was worse, and by how
+much; otherwise, the test passes, indicating how much better (if at all) the
+defined implementation is compared to the default.
+
+@since wip
+-}
+pminDefaultBetter ::
+  forall (a :: S -> Type).
+  (POrd a, Typeable a) =>
+  (forall (s :: S). Term s a) ->
+  (forall (s :: S). Term s a) ->
+  TestTree
+pminDefaultBetter arg1 arg2 = singleTest testName $ PMin arg1 arg2
+  where
+    testName :: String
+    testName = "pmin versus default for " <> typeName @(S -> Type) @a
+
 -- Helpers
 
 data DefaultBetter where
@@ -59,61 +87,82 @@ data DefaultBetter where
     (forall (s :: S). Term s a) ->
     (forall (s :: S). Term s a) ->
     DefaultBetter
+  PMin ::
+    forall (a :: S -> Type).
+    POrd a =>
+    (forall (s :: S). Term s a) ->
+    (forall (s :: S). Term s a) ->
+    DefaultBetter
 
 instance IsTest DefaultBetter where
   testOptions = Tagged []
-  run _ t _ = case t of
-    PMax x y -> pure $ case compileOptimized (pif (x #<= y) y x) of
-      Left err -> testFailed $ "Failed to compile default implementation of pmax: " <> Text.unpack err
-      Right usingDefault -> case compileOptimized (pmax x y) of
-        Left err -> testFailed $ "Failed to compile defined implementation of pmax: " <> Text.unpack err
-        Right usingImpl -> case evalScriptUnlimited usingDefault of
-          (Left err, _, _) -> testFailed $ "Default implementation of pmax did not evaluate: " <> show err
-          (Right _, ExBudget (ExCPU cpuDefault) (ExMemory memDefault), _) -> case evalScriptUnlimited usingImpl of
-            (Left err, _, _) -> testFailed $ "Defined implementation of pmax did not evaluate: " <> show err
-            (Right _, ExBudget (ExCPU cpuImpl) (ExMemory memImpl), _) ->
-              let sizeOfDefault = scriptSize usingDefault
-                  sizeOfImpl = scriptSize usingImpl
-                  exUnitsDefault = fromSatInt @Integer cpuDefault
-                  exUnitsImpl = fromSatInt cpuImpl
-                  memUnitsDefault = fromSatInt @Integer memDefault
-                  memUnitsImpl = fromSatInt memImpl
-                  sizeDiff = sizeOfImpl - sizeOfDefault
-                  exUnitsDiff = exUnitsImpl - exUnitsDefault
-                  memDiff = memUnitsImpl - memUnitsDefault
-               in if
-                    | sizeDiff < 0 ->
-                        testFailed $
-                          "Implementation is larger than the default by "
-                            <> show (abs sizeDiff)
-                            <> " bytes.\nOther diffs (negative means worse implementation):\nExunits: "
-                            <> show exUnitsDiff
-                            <> "\n"
-                            <> "Memory: "
-                            <> show memDiff
-                            <> "\n"
-                    | exUnitsDiff < 0 ->
-                        testFailed $
-                          "Implementation uses "
-                            <> show (abs exUnitsDiff)
-                            <> " more exunits than default"
-                    | memDiff < 0 ->
-                        testFailed $
-                          "Implementation uses "
-                            <> show (abs memDiff)
-                            <> " more memory units than default"
-                    | otherwise ->
-                        testPassed $
-                          "Differences from pmax default:\n"
-                            <> "Size: "
-                            <> show sizeDiff
-                            <> "\n"
-                            <> "Exunits: "
-                            <> show exUnitsDiff
-                            <> "\n"
-                            <> "Memory: "
-                            <> show memDiff
-                            <> "\n"
+  run _ t _ = pure $ case t of
+    PMax x y -> case tryAndApply
+      "pmax"
+      (plam $ \x' y' -> pif (x' #<= y') y x)
+      (plam $ \x' y' -> pmax x' y')
+      x
+      y of
+      Left failText -> testFailed failText
+      Right deltas@(sizeDelta, exUnitDelta, memDelta) ->
+        if (sizeDelta >= 0) && (exUnitDelta >= 0) && (memDelta >= 0)
+          then testPassed . formatDelta $ deltas
+          else testFailed . formatDelta $ deltas
+    PMin x y -> case tryAndApply
+      "pmin"
+      (plam $ \x' y' -> pif (x' #<= y') x' y')
+      (plam $ \x' y' -> pmin x' y')
+      x
+      y of
+      Left failText -> testFailed failText
+      Right deltas@(sizeDelta, exUnitDelta, memDelta) ->
+        if (sizeDelta >= 0) && (exUnitDelta >= 0) && (memDelta >= 0)
+          then testPassed . formatDelta $ deltas
+          else testFailed . formatDelta $ deltas
 
 scriptSize :: Script -> Integer
 scriptSize = fromIntegral . Short.length . serialiseUPLC . unScript
+
+tryAndApply ::
+  forall (a :: S -> Type).
+  String ->
+  (forall (s :: S). Term s (a :--> a :--> a)) ->
+  (forall (s :: S). Term s (a :--> a :--> a)) ->
+  (forall (s :: S). Term s a) ->
+  (forall (s :: S). Term s a) ->
+  Either String (Integer, Integer, Integer)
+tryAndApply op defaultImpl definedImpl x y = do
+  usingDefault <- first (formatCompileErr "default") . compileOptimized $ defaultImpl # x # y
+  usingImpl <- first (formatCompileErr "defined") . compileOptimized $ definedImpl # x # y
+  (cpuDefault, memDefault) <- tryEval "Default" usingDefault
+  (cpuImpl, memImpl) <- tryEval "Defined" usingImpl
+  let sizeDelta = scriptSize usingImpl - scriptSize usingDefault
+  let exunitDelta = cpuImpl - cpuDefault
+  let memDelta = memImpl - memDefault
+  pure (sizeDelta, exunitDelta, memDelta)
+  where
+    formatCompileErr :: String -> Text -> String
+    formatCompileErr which err =
+      "Failed to compile "
+        <> which
+        <> "implementation of "
+        <> op
+        <> ": "
+        <> Text.unpack err
+    tryEval :: String -> Script -> Either String (Integer, Integer)
+    tryEval which s = case evalScriptUnlimited s of
+      (Left err, _, _) -> Left $ which <> " implementation of " <> op <> " did not evaluate: " <> show err
+      (Right _, ExBudget (ExCPU cpu) (ExMemory mem), _) -> pure (fromSatInt @Integer cpu, fromSatInt @Integer mem)
+
+formatDelta :: (Integer, Integer, Integer) -> String
+formatDelta (sizeDelta, exUnitDelta, memDelta) =
+  "Difference from default implementation (negative means worse):\n"
+    <> "Script size: "
+    <> show sizeDelta
+    <> "\n"
+    <> "Exunits: "
+    <> show exUnitDelta
+    <> "\n"
+    <> "Memory: "
+    <> show memDelta
+    <> "\n"

@@ -204,14 +204,6 @@ instance
     PDRight t1' -> pmatch t2 $ \case
       PDLeft _ -> pcon PFalse
       PDRight t2' -> pfromData t1' #< pfromData t2'
-  {-# INLINEABLE pmin #-}
-  pmin t1 t2 = pmatch t1 $ \case
-    PDLeft t1' -> pmatch t2 $ \case
-      PDLeft t2' -> pif (pfromData t1' #< pfromData t2') t1 t2
-      PDRight _ -> t1
-    PDRight t1' -> pmatch t2 $ \case
-      PDLeft _ -> t2
-      PDRight t2' -> pif (pfromData t1' #< pfromData t2') t1 t2
 
 -- | @since 1.10.0
 instance PlutusType (PEitherData a b) where
