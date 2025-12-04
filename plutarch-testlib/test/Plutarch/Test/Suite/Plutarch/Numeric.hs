@@ -1,7 +1,7 @@
 module Plutarch.Test.Suite.Plutarch.Numeric (tests) where
 
 import Plutarch.Prelude (PInteger, PPositive)
-import Plutarch.Test.Methods (psuccessorNBetter)
+import Plutarch.Test.Methods (ppredecessorNBetter, psuccessorNBetter)
 import Plutarch.Unsafe (punsafeCoerce)
 import Test.Tasty (TestTree, testGroup)
 
@@ -16,5 +16,6 @@ tests =
     , testGroup
         "PInteger"
         [ psuccessorNBetter @PInteger (punsafeCoerce @_ @PInteger 20) 10
+        , ppredecessorNBetter @PInteger (punsafeCoerce @_ @PInteger 20) 10
         ]
     ]

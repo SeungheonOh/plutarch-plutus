@@ -15,7 +15,7 @@ import Plutarch.Test.Laws (
   checkPAdditiveMonoidLaws,
   checkPAdditiveSemigroupLaws,
  )
-import Plutarch.Test.Methods (psuccessorNBetter)
+import Plutarch.Test.Methods (ppredecessorNBetter, psuccessorNBetter)
 import Plutarch.Test.QuickCheck (propPTryFromRoundrip)
 import Plutarch.Test.Suite.PlutarchLedgerApi.V1.Interval qualified as Interval
 import Plutarch.Test.Suite.PlutarchLedgerApi.V1.Value qualified as Value
@@ -80,6 +80,7 @@ tests =
         , checkPAdditiveGroupLaws @PLA.PPosixTime
         , propPTryFromRoundrip @PLA.PPosixTime
         , psuccessorNBetter (punsafeCoerce @_ @PInteger 10) (evalTerm' NoTracing $ PLA.pposixTime 2000)
+        , ppredecessorNBetter (punsafeCoerce @_ @PInteger 10) (evalTerm' NoTracing $ PLA.pposixTime 2000)
         ]
     , -- We only care about intervals of PPosixTime, so we don't check anything else
       testGroup
