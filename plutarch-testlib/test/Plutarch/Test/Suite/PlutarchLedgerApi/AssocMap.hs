@@ -249,7 +249,7 @@ tests =
                 ( AssocMap.pfoldlWithKey
                     # plam (\acc k v -> acc + k + v)
                     # pconstant a
-                    # (AssocMap.ppromoteToSortedMap # pconstant @(PUnsortedMap PInteger PInteger) m)
+                    # pconstant @(PUnsortedMap PInteger PInteger) m
                 )
     , testProperty "all = pall" $
         checkHaskellUnsortedPMapEquivalent (PlutusMap.all even) (AssocMap.pall # peven)
