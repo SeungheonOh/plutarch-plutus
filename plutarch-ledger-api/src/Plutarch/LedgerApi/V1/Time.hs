@@ -82,6 +82,8 @@ instance PAdditiveGroup PPosixTime where
   pnegate = phoistAcyclic $ plam $ \t -> pposixTime (pnegate # unPPosixTime t)
   {-# INLINEABLE (#-) #-}
   t1 #- t2 = pposixTime (unPPosixTime t1 #- unPPosixTime t2)
+  {-# INLINEABLE pscaleInteger #-}
+  pscaleInteger t i = pposixTime (unPPosixTime t #* i)
 
 -- | @since 3.3.0
 deriving via

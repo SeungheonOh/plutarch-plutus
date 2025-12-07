@@ -10,6 +10,11 @@ module Plutarch.Test.Methods (
 
   -- * PEnumerable
   ppredecessorNBetter,
+
+  -- * Additive
+  pscalePositiveBetter,
+  pscaleNaturalBetter,
+  pscaleIntegerBetter,
 ) where
 
 import Data.Bifunctor (first)
@@ -20,10 +25,16 @@ import Data.Tagged (Tagged (Tagged))
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Plutarch.Evaluate (evalScriptUnlimited)
-import Plutarch.Internal.Term (compileOptimized)
+import Plutarch.Internal.Numeric (pbySquaringDefault)
+import Plutarch.Internal.Term (compileOptimized, punsafeCoerce)
 import Plutarch.Prelude (
+  PAdditiveGroup (pnegate, pscaleInteger),
+  PAdditiveMonoid (pscaleNatural, pzero),
+  PAdditiveSemigroup (pscalePositive, (#+)),
   PCountable (psuccessor, psuccessorN),
   PEnumerable (ppredecessor, ppredecessorN),
+  PInteger,
+  PNatural,
   POrd (pmax, pmin, (#<=)),
   PPositive,
   S,
@@ -31,14 +42,15 @@ import Plutarch.Prelude (
   pfix,
   pif,
   plam,
+  plet,
   pone,
   (#),
-  (#+),
   (#==),
   (:-->),
  )
 import Plutarch.Script (Script (unScript))
 import Plutarch.Test.Utils (typeName)
+import Plutarch.Unsafe (punsafeDowncast)
 import PlutusCore.Evaluation.Machine.ExBudget (ExBudget (ExBudget))
 import PlutusCore.Evaluation.Machine.ExMemory (ExCPU (ExCPU), ExMemory (ExMemory))
 import PlutusLedgerApi.Common (serialiseUPLC)
@@ -132,6 +144,66 @@ ppredecessorNBetter arg1 arg2 = singleTest testName $ PPredecessorN arg1 arg2
     testName :: String
     testName = "ppredecessorN versus default for " <> typeName @(S -> Type) @a
 
+{- | Given two arguments to test with, compares the default implementation of
+'pscalePositive' to the one defined for the given type. If the defined implementation
+is worse than the default in any capacity, the test fails, indicating both
+what metric (out of exunits, memory use or script size) was worse, and by how
+much; otherwise, the test passes, indicating how much better (if at all) the
+defined implementation is compared to the default.
+
+@since wip
+-}
+pscalePositiveBetter ::
+  forall (a :: S -> Type).
+  (PAdditiveSemigroup a, Typeable a) =>
+  (forall (s :: S). Term s a) ->
+  (forall (s :: S). Term s PPositive) ->
+  TestTree
+pscalePositiveBetter arg1 arg2 = singleTest testName $ PScalePositive arg1 arg2
+  where
+    testName :: String
+    testName = "pscalePositive versus default for " <> typeName @(S -> Type) @a
+
+{- | Given two arguments to test with, compares the default implementation of
+'pscaleNatural' to the one defined for the given type. If the defined implementation
+is worse than the default in any capacity, the test fails, indicating both
+what metric (out of exunits, memory use or script size) was worse, and by how
+much; otherwise, the test passes, indicating how much better (if at all) the
+defined implementation is compared to the default.
+
+@since wip
+-}
+pscaleNaturalBetter ::
+  forall (a :: S -> Type).
+  (PAdditiveMonoid a, Typeable a) =>
+  (forall (s :: S). Term s a) ->
+  (forall (s :: S). Term s PNatural) ->
+  TestTree
+pscaleNaturalBetter arg1 arg2 = singleTest testName $ PScaleNatural arg1 arg2
+  where
+    testName :: String
+    testName = "pscaleNatural versus default for " <> typeName @(S -> Type) @a
+
+{- | Given two arguments to test with, compares the default implementation of
+'pscaleInteger' to the one defined for the given type. If the defined implementation
+is worse than the default in any capacity, the test fails, indicating both
+what metric (out of exunits, memory use or script size) was worse, and by how
+much; otherwise, the test passes, indicating how much better (if at all) the
+defined implementation is compared to the default.
+
+@since wip
+-}
+pscaleIntegerBetter ::
+  forall (a :: S -> Type).
+  (PAdditiveGroup a, Typeable a) =>
+  (forall (s :: S). Term s a) ->
+  (forall (s :: S). Term s PInteger) ->
+  TestTree
+pscaleIntegerBetter arg1 arg2 = singleTest testName $ PScaleInteger arg1 arg2
+  where
+    testName :: String
+    testName = "pscaleInteger versus default for " <> typeName @(S -> Type) @a
+
 -- Helpers
 
 data DefaultBetter where
@@ -159,6 +231,24 @@ data DefaultBetter where
     (forall (s :: S). Term s PPositive) ->
     (forall (s :: S). Term s a) ->
     DefaultBetter
+  PScalePositive ::
+    forall (a :: S -> Type).
+    PAdditiveSemigroup a =>
+    (forall (s :: S). Term s a) ->
+    (forall (s :: S). Term s PPositive) ->
+    DefaultBetter
+  PScaleNatural ::
+    forall (a :: S -> Type).
+    PAdditiveMonoid a =>
+    (forall (s :: S). Term s a) ->
+    (forall (s :: S). Term s PNatural) ->
+    DefaultBetter
+  PScaleInteger ::
+    forall (a :: S -> Type).
+    PAdditiveGroup a =>
+    (forall (s :: S). Term s a) ->
+    (forall (s :: S). Term s PInteger) ->
+    DefaultBetter
 
 instance IsTest DefaultBetter where
   testOptions = Tagged []
@@ -173,6 +263,15 @@ instance IsTest DefaultBetter where
       Left failText -> testFailed failText
       Right deltas -> handleDeltas deltas
     PPredecessorN p x -> case tryAndApply "ppredecessorN" ppredecessorNDefault ppredecessorN p x of
+      Left failText -> testFailed failText
+      Right deltas -> handleDeltas deltas
+    PScalePositive x p -> case tryAndApply "pscalePositive" (plam $ pbySquaringDefault (#+)) (plam pscalePositive) x p of
+      Left failText -> testFailed failText
+      Right deltas -> handleDeltas deltas
+    PScaleNatural x n -> case tryAndApply "pscaleNatural" pscaleNaturalDefault (plam pscaleNatural) x n of
+      Left failText -> testFailed failText
+      Right deltas -> handleDeltas deltas
+    PScaleInteger x i -> case tryAndApply "pscaleInteger" pscaleIntegerDefault (plam pscaleInteger) x i of
       Left failText -> testFailed failText
       Right deltas -> handleDeltas deltas
     where
@@ -198,6 +297,24 @@ instance IsTest DefaultBetter where
         PEnumerable a => Term s PPositive -> Term s (a :--> PPositive :--> a)
       goPred limit = pfix $ \self -> plam $ \acc count ->
         pif (count #== limit) acc (self # (ppredecessor # acc) # (count #+ pone))
+      pscaleNaturalDefault ::
+        forall (a :: S -> Type) (s :: S).
+        PAdditiveMonoid a => Term s (a :--> PNatural :--> a)
+      pscaleNaturalDefault = plam $ \x n -> plet n $ \n' ->
+        pif (n' #== pzero) pzero (pscalePositive x (punsafeCoerce n'))
+      pscaleIntegerDefault ::
+        forall (a :: S -> Type) (s :: S).
+        PAdditiveGroup a => Term s (a :--> PInteger :--> a)
+      pscaleIntegerDefault = plam $ \b e ->
+        plet e $ \e' ->
+          pif
+            (e' #== pzero)
+            pzero
+            ( pif
+                (e' #<= pzero)
+                (pnegate # pscalePositive b (punsafeDowncast (pnegate # e')))
+                (pscalePositive b (punsafeDowncast e'))
+            )
 
 scriptSize :: Script -> Integer
 scriptSize = fromIntegral . Short.length . serialiseUPLC . unScript
