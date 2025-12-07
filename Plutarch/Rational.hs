@@ -42,7 +42,7 @@ import Plutarch.Internal.Numeric (
   PAdditiveMonoid (pscaleNatural, pzero),
   PAdditiveSemigroup (pscalePositive, (#+)),
   PIntegralDomain (pabs, psignum),
-  PMultiplicativeMonoid (pone, ppowNatural),
+  PMultiplicativeMonoid (pone),
   PMultiplicativeSemigroup (ppowPositive, (#*)),
   PPositive,
   PRing (pfromInteger),
@@ -224,10 +224,6 @@ instance PMultiplicativeSemigroup PRational where
 instance PMultiplicativeMonoid PRational where
   {-# INLINEABLE pone #-}
   pone = pcon . PRational pone $ pone
-  {-# INLINEABLE ppowNatural #-}
-  ppowNatural x n = plet n $ \n' ->
-    pmatch x $ \(PRational xn xd) ->
-      pcon . PRational (ppowNatural xn n') $ ppowNatural xd n'
 
 -- | @since 1.10.0
 instance PRing PRational where

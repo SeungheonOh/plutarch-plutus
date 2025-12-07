@@ -1,8 +1,17 @@
 module Plutarch.Test.Suite.Plutarch.Rational (tests) where
 
+import Plutarch.Evaluate (evalTerm')
+import Plutarch.Internal.Term (Config (NoTracing))
 import Plutarch.Prelude
-import Plutarch.Rational (pproperFraction, ptruncate)
+import Plutarch.Rational (pproperFraction, preduce, ptruncate)
 import Plutarch.Test.Golden (goldenEval, goldenEvalFail, goldenGroup, plutarchGolden)
+import Plutarch.Test.Methods (
+  ppowPositiveBetter,
+  pscaleIntegerBetter,
+  pscaleNaturalBetter,
+  pscalePositiveBetter,
+ )
+import Plutarch.Unsafe (punsafeCoerce)
 import Test.Tasty (TestTree, testGroup)
 
 tests :: TestTree
@@ -57,7 +66,17 @@ tests =
             , goldenEvalFail "1/(1-1)" ((1 :: Term s PRational) / (1 - 1))
             ]
         ]
+    , testGroup
+        "Methods"
+        [ pscalePositiveBetter sample (punsafeCoerce @_ @PInteger 10)
+        , pscaleNaturalBetter sample (punsafeCoerce @_ @PInteger 10)
+        , pscaleIntegerBetter sample 10
+        , ppowPositiveBetter sample (punsafeCoerce @_ @PInteger 10)
+        ]
     ]
 
 rat :: Term s PRational -> Term s PRational
 rat = id
+
+sample :: forall (s :: S). Term s PRational
+sample = evalTerm' NoTracing (preduce # pcon (PRational 15 (punsafeCoerce @_ @PInteger 17)))
