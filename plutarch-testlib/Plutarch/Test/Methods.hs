@@ -15,6 +15,10 @@ module Plutarch.Test.Methods (
   pscalePositiveBetter,
   pscaleNaturalBetter,
   pscaleIntegerBetter,
+
+  -- * Multiplicative
+  ppowPositiveBetter,
+  ppowNaturalBetter,
 ) where
 
 import Data.Bifunctor (first)
@@ -34,6 +38,8 @@ import Plutarch.Prelude (
   PCountable (psuccessor, psuccessorN),
   PEnumerable (ppredecessor, ppredecessorN),
   PInteger,
+  PMultiplicativeMonoid (ppowNatural),
+  PMultiplicativeSemigroup (ppowPositive, (#*)),
   PNatural,
   POrd (pmax, pmin, (#<=)),
   PPositive,
@@ -204,6 +210,46 @@ pscaleIntegerBetter arg1 arg2 = singleTest testName $ PScaleInteger arg1 arg2
     testName :: String
     testName = "pscaleInteger versus default for " <> typeName @(S -> Type) @a
 
+{- | Given two arguments to test with, compares the default implementation of
+'ppowPositive' to the one defined for the given type. If the defined implementation
+is worse than the default in any capacity, the test fails, indicating both
+what metric (out of exunits, memory use or script size) was worse, and by how
+much; otherwise, the test passes, indicating how much better (if at all) the
+defined implementation is compared to the default.
+
+@since wip
+-}
+ppowPositiveBetter ::
+  forall (a :: S -> Type).
+  (PMultiplicativeSemigroup a, Typeable a) =>
+  (forall (s :: S). Term s a) ->
+  (forall (s :: S). Term s PPositive) ->
+  TestTree
+ppowPositiveBetter arg1 arg2 = singleTest testName $ PPowPositive arg1 arg2
+  where
+    testName :: String
+    testName = "ppowPositive versus default for " <> typeName @(S -> Type) @a
+
+{- | Given two arguments to test with, compares the default implementation of
+'ppowNatural' to the one defined for the given type. If the defined implementation
+is worse than the default in any capacity, the test fails, indicating both
+what metric (out of exunits, memory use or script size) was worse, and by how
+much; otherwise, the test passes, indicating how much better (if at all) the
+defined implementation is compared to the default.
+
+@since wip
+-}
+ppowNaturalBetter ::
+  forall (a :: S -> Type).
+  (PMultiplicativeMonoid a, Typeable a) =>
+  (forall (s :: S). Term s a) ->
+  (forall (s :: S). Term s PNatural) ->
+  TestTree
+ppowNaturalBetter arg1 arg2 = singleTest testName $ PPowNatural arg1 arg2
+  where
+    testName :: String
+    testName = "ppowNatural versus default for " <> typeName @(S -> Type) @a
+
 -- Helpers
 
 data DefaultBetter where
@@ -249,31 +295,31 @@ data DefaultBetter where
     (forall (s :: S). Term s a) ->
     (forall (s :: S). Term s PInteger) ->
     DefaultBetter
+  PPowPositive ::
+    forall (a :: S -> Type).
+    PMultiplicativeSemigroup a =>
+    (forall (s :: S). Term s a) ->
+    (forall (s :: S). Term s PPositive) ->
+    DefaultBetter
+  PPowNatural ::
+    forall (a :: S -> Type).
+    PMultiplicativeMonoid a =>
+    (forall (s :: S). Term s a) ->
+    (forall (s :: S). Term s PNatural) ->
+    DefaultBetter
 
 instance IsTest DefaultBetter where
   testOptions = Tagged []
-  run _ t _ = pure $ case t of
-    PMax x y -> case tryAndApply "pmax" pmaxDefault (plam $ \x' y' -> pmax x' y') x y of
-      Left failText -> testFailed failText
-      Right deltas -> handleDeltas deltas
-    PMin x y -> case tryAndApply "pmin" pminDefault (plam $ \x' y' -> pmin x' y') x y of
-      Left failText -> testFailed failText
-      Right deltas -> handleDeltas deltas
-    PSuccessorN p x -> case tryAndApply "psuccessorN" psuccessorNDefault psuccessorN p x of
-      Left failText -> testFailed failText
-      Right deltas -> handleDeltas deltas
-    PPredecessorN p x -> case tryAndApply "ppredecessorN" ppredecessorNDefault ppredecessorN p x of
-      Left failText -> testFailed failText
-      Right deltas -> handleDeltas deltas
-    PScalePositive x p -> case tryAndApply "pscalePositive" (plam $ pbySquaringDefault (#+)) (plam pscalePositive) x p of
-      Left failText -> testFailed failText
-      Right deltas -> handleDeltas deltas
-    PScaleNatural x n -> case tryAndApply "pscaleNatural" pscaleNaturalDefault (plam pscaleNatural) x n of
-      Left failText -> testFailed failText
-      Right deltas -> handleDeltas deltas
-    PScaleInteger x i -> case tryAndApply "pscaleInteger" pscaleIntegerDefault (plam pscaleInteger) x i of
-      Left failText -> testFailed failText
-      Right deltas -> handleDeltas deltas
+  run _ t _ = pure . either testFailed handleDeltas $ case t of
+    PMax x y -> tryAndApply "pmax" pmaxDefault (plam $ \x' y' -> pmax x' y') x y
+    PMin x y -> tryAndApply "pmin" pminDefault (plam $ \x' y' -> pmin x' y') x y
+    PSuccessorN p x -> tryAndApply "psuccessorN" psuccessorNDefault psuccessorN p x
+    PPredecessorN p x -> tryAndApply "ppredecessorN" ppredecessorNDefault ppredecessorN p x
+    PScalePositive x p -> tryAndApply "pscalePositive" (plam $ pbySquaringDefault (#+)) (plam pscalePositive) x p
+    PScaleNatural x n -> tryAndApply "pscaleNatural" pscaleNaturalDefault (plam pscaleNatural) x n
+    PScaleInteger x i -> tryAndApply "pscaleInteger" pscaleIntegerDefault (plam pscaleInteger) x i
+    PPowPositive x p -> tryAndApply "ppowPositive" (plam $ pbySquaringDefault (#*)) (plam ppowPositive) x p
+    PPowNatural x n -> tryAndApply "ppowNatural" ppowNaturalDefault (plam ppowNatural) x n
     where
       pmaxDefault :: forall (a :: S -> Type) (s :: S). POrd a => Term s (a :--> a :--> a)
       pmaxDefault = plam $ \x y -> pif (x #<= y) y x
@@ -315,6 +361,14 @@ instance IsTest DefaultBetter where
                 (pnegate # pscalePositive b (punsafeDowncast (pnegate # e')))
                 (pscalePositive b (punsafeDowncast e'))
             )
+      ppowNaturalDefault ::
+        forall (a :: S -> Type) (s :: S).
+        PMultiplicativeMonoid a => Term s (a :--> PNatural :--> a)
+      ppowNaturalDefault = plam $ \x n -> plet n $ \n' ->
+        pif
+          (n' #== pzero)
+          pone
+          (ppowPositive x (punsafeCoerce n'))
 
 scriptSize :: Script -> Integer
 scriptSize = fromIntegral . Short.length . serialiseUPLC . unScript
