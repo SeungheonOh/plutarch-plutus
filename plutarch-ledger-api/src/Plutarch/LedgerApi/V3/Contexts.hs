@@ -26,7 +26,8 @@ module Plutarch.LedgerApi.V3.Contexts (
   pfindDatum,
   pfindDatumHash,
   pparseDatum,
-  pfindInputByOutRef,
+  pfindTxInByTxOutRef,
+  pfindContinuingOutputs,
   pgetContinuingOutputs,
   ptxSignedBy,
   ppubKeyOutputsAt,
@@ -861,17 +862,15 @@ pfindOwnInput =
         plet (pscriptContext'scriptInfo ctx) $ \scriptInfo ->
           pmatch scriptInfo $ \case
             PSpendingScript outRef _ ->
-              pmatch (pscriptContext'txInfo ctx) $ \txInfo ->
-                pfindInputByOutRef # pfromData (ptxInfo'inputs txInfo) # outRef
-            _ -> pcon PNothing
+              pfindTxInByTxOutRef # outRef # pscriptContext'txInfo ctx
+            _ ->
+              pcon PNothing
 
 {- | Find the datum corresponding to a datum hash, if there is one.
 
 @since 3.1.0
 -}
-pfindDatum ::
-  forall (s :: S).
-  Term s (PDatumHash :--> PTxInfo :--> PMaybe PDatum)
+pfindDatum :: forall (s :: S). Term s (PDatumHash :--> PTxInfo :--> PMaybe PDatum)
 pfindDatum = phoistAcyclic $ plam $ \dh txI ->
   pmatch txI $ \tx ->
     AssocMap.plookup # dh # AssocMap.punsafeCoerceToSortedMap (pfromData (ptxInfo'data tx))
@@ -880,9 +879,7 @@ pfindDatum = phoistAcyclic $ plam $ \dh txI ->
 
 @since 3.1.0
 -}
-pfindDatumHash ::
-  forall (s :: S).
-  Term s (PDatum :--> PTxInfo :--> PMaybe PDatumHash)
+pfindDatumHash :: forall (s :: S). Term s (PDatum :--> PTxInfo :--> PMaybe PDatumHash)
 pfindDatumHash = phoistAcyclic $ plam $ \d txI ->
   pmatch txI $ \tx ->
     pmatch (pfromData (ptxInfo'data tx)) $ \(AssocMap.PUnsortedMap ell) ->
@@ -925,37 +922,30 @@ pparseDatum = phoistAcyclic $ plam $ \dh datums ->
     PNothing -> pcon PNothing
     PJust datum -> pcon . PJust $ ptryFrom (pto datum) fst
 
-{- | Look up an input by its output reference.
+{- | Given a UTXO reference and a transaction ('PTxInfo'), resolve it to one of
+the transaction's inputs ('PTxInInfo'). If no matching input exists, the result
+is 'PNothing'.
 
-  Returns the input corresponding to the given output reference from a list of
-  inputs. If no matching input exists, the result is `PNothing`.
+= NOTE
 
-  __Example:__
+This only searches the true transaction inputs and not the referenced
+transaction inputs.
 
-  @
-  ctx <- tcont $ pletFields @["txInfo", "purpose"] sc
-  pmatchC (getField @"purpose" ctx) >>= \case
-    PSpending outRef' -> do
-      let outRef = pfield @"_0" # outRef'
-          inputs = pfield @"inputs" # (getField @"txInfo" ctx)
-      pure $ pfindInputByOutRef # inputs # outRef
-    _ ->
-      pure $ ptraceInfoError "not a spending tx"
-  @
-
-  @since 3.5.0
+@since wip
 -}
-pfindInputByOutRef ::
+pfindTxInByTxOutRef ::
   forall (s :: S).
   Term
     s
-    ( PBuiltinList (PAsData PTxInInfo)
-        :--> PTxOutRef
+    ( PTxOutRef
+        :--> PTxInfo
         :--> PMaybe PTxInInfo
     )
-pfindInputByOutRef = phoistAcyclic $
-  plam $ \inputs outRef ->
-    pmapMaybe # plam pfromData #$ pfind # (matches # outRef) # inputs
+pfindTxInByTxOutRef = phoistAcyclic $
+  plam $ \outRef txInfo ->
+    pmatch txInfo $ \tx ->
+      plet (ptxInfo'inputs tx) $ \inputs ->
+        pmapMaybe # plam pfromData #$ pfind # (matches # outRef) # pfromData inputs
   where
     matches ::
       forall (s' :: S).
@@ -965,55 +955,70 @@ pfindInputByOutRef = phoistAcyclic $
         pmatch (pfromData txininfo) $ \ininfo ->
           outRef #== ptxInInfo'outRef ininfo
 
-{- | Find the output txns corresponding to the input being validated.
+{- | Find the indices of all the outputs that pay to the same script address we
+are currently spending from, if any.
 
-  Takes as arguments the inputs, outputs and the spending transaction referenced
-  from `PScriptPurpose`.
-
-  __Example:__
-
-  @
-  ctx <- tcont $ pletFields @["txInfo", "purpose"] sc
-  pmatchC (getField @"purpose" ctx) >>= \case
-    PSpending outRef' -> do
-      let outRef = pfield @"_0" # outRef'
-          inputs = pfield @"inputs" # (getField @"txInfo" ctx)
-          outputs = pfield @"outputs" # (getField @"txInfo" ctx)
-      pure $ pgetContinuingOutputs # inputs # outputs # outRef
-    _ ->
-      pure $ ptraceInfoError "not a spending tx"
-  @
-
-  @since 2.1.0
+@since wip
 -}
-pgetContinuingOutputs ::
-  forall (s :: S).
-  Term
-    s
-    ( PBuiltinList (PAsData PTxInInfo)
-        :--> PBuiltinList PTxOut
-        :--> PTxOutRef
-        :--> PBuiltinList PTxOut
-    )
-pgetContinuingOutputs = phoistAcyclic $
-  plam $ \inputs outputs outRef ->
-    pmatch (pfindInputByOutRef # inputs # outRef) $ \case
-      PJust tx -> unTermCont $ do
-        txInInfo <- pmatchC tx
-        txOut <- pmatchC $ ptxInInfo'resolved txInInfo
-        outAddr <- pletC $ ptxOut'address txOut
+pfindContinuingOutputs :: forall (s :: S). Term s (PScriptContext :--> PBuiltinList PInteger)
+pfindContinuingOutputs =
+  phoistAcyclic $
+    plam $ \scriptCtx ->
+      pmatch (pfindOwnInput # scriptCtx) $ \case
+        PNothing ->
+          ptraceInfoError "can't find any continuing outputs: invalid script purpose"
+        PJust ownInput ->
+          unTermCont $ do
+            ctx <- pmatchC scriptCtx
+            txInfo <- pmatchC $ pscriptContext'txInfo ctx
+            outputs <- pletC $ pfromData $ ptxInfo'outputs txInfo
+            txInInfo <- pmatchC ownInput
+            resolved <- pmatchC $ ptxInInfo'resolved txInInfo
+            addr <- pletC $ ptxOut'address resolved
+            PPair indices _ <-
+              pmatchC $
+                pfoldr
+                  # plam
+                    ( \out acc ->
+                        pmatch acc $ \(PPair indices currentIdx) ->
+                          pmatch (pfromData out) $ \txOut ->
+                            pif
+                              (ptxOut'address txOut #== addr)
+                              (pcon $ PPair (pcons # currentIdx # indices) (currentIdx #- 1))
+                              (pcon $ PPair indices (currentIdx #- 1))
+                    )
+                  # pcon (PPair pnil $ (plength # outputs) #- 1)
+                  # outputs
+            pure indices
 
-        pure $ pfilter # (matches # outAddr) # outputs
-      PNothing ->
-        ptraceInfoError "can't get any continuing outputs"
-  where
-    matches ::
-      forall (s' :: S).
-      Term s' (PAddress :--> PTxOut :--> PBool)
-    matches = phoistAcyclic $
-      plam $ \adr txOut ->
-        pmatch txOut $ \out ->
-          adr #== ptxOut'address out
+{- | Get all the outputs that pay to the same script address we are currently
+spending from, if any.
+
+@since wip
+-}
+pgetContinuingOutputs :: forall (s :: S). Term s (PScriptContext :--> PBuiltinList (PAsData PTxOut))
+pgetContinuingOutputs =
+  phoistAcyclic $
+    plam $ \scriptCtx ->
+      pmatch (pfindOwnInput # scriptCtx) $ \case
+        PNothing ->
+          ptraceInfoError "can't get any continuing outputs: invalid script purpose"
+        PJust ownInput ->
+          unTermCont $ do
+            ctx <- pmatchC scriptCtx
+            txInfo <- pmatchC $ pscriptContext'txInfo ctx
+            outputs <- pletC $ pfromData $ ptxInfo'outputs txInfo
+            txInInfo <- pmatchC ownInput
+            resolved <- pmatchC $ ptxInInfo'resolved txInInfo
+            addr <- pletC $ ptxOut'address resolved
+            pure $
+              pfilter
+                # plam
+                  ( \out ->
+                      pmatch (pfromData out) $ \txOut ->
+                        ptxOut'address txOut #== addr
+                  )
+                # outputs
 
 {- | Check if a transaction was signed by the given public key.
 
@@ -1034,13 +1039,13 @@ ppubKeyOutputsAt ::
   forall (s :: S).
   Term
     s
-    ( PTxInfo
-        :--> PPubKeyHash
+    ( PPubKeyHash
+        :--> PTxInfo
         :--> PBuiltinList (PAsData PLedgerValue)
     )
 ppubKeyOutputsAt =
   phoistAcyclic $
-    plam $ \txInfo targetPkh ->
+    plam $ \targetPkh txInfo ->
       unTermCont $ do
         tx <- pmatchC txInfo
         outputs <- pletC $ pfromData $ ptxInfo'outputs tx
@@ -1071,7 +1076,7 @@ pvaluePaidTo :: forall (s :: S). Term s (PTxInfo :--> PPubKeyHash :--> PLedgerVa
 pvaluePaidTo =
   phoistAcyclic $
     plam $ \txInfo pkh ->
-      plet (ppubKeyOutputsAt # txInfo # pkh) $ \vals ->
+      plet (ppubKeyOutputsAt # pkh # txInfo) $ \vals ->
         pfoldl
           # plam (\x y -> x <> pfromData y)
           # pemptyLedgerValue
