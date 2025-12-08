@@ -32,6 +32,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 * In `Plutarch.LedgerApi.Value`, `passertSorted` has been deprecated in favor
   of `ppromoteToSortedValue`.
 * `PSortedMap` and all sorted Value types now disallow duplicate keys.
+* In `Plutarch.LedgerApi.AssocMap`, `pfoldMapWithKey` and `pfoldlWithKey`
+  functions now accept `PUnsortedMap` instead of `PSortedMap`, making them more
+  generic.
 * In `Plutarch.LedgerApi.Interval`, renamed `palways` to `punbounded`. 
 
 ### Removed
