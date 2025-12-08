@@ -1,7 +1,7 @@
-constants.always {"exBudgetCPU":16100,"exBudgetMemory":200,"scriptSizeBytes":34}
+constants.unbounded {"exBudgetCPU":16100,"exBudgetMemory":200,"scriptSizeBytes":34}
 contains.in interval {"exBudgetCPU":18923718,"exBudgetMemory":79264,"scriptSizeBytes":536}
 contains.out interval {"exBudgetCPU":15666641,"exBudgetMemory":65945,"scriptSizeBytes":536}
-contains.always {"exBudgetCPU":14704074,"exBudgetMemory":62756,"scriptSizeBytes":537}
+contains.unbounded {"exBudgetCPU":14704074,"exBudgetMemory":62756,"scriptSizeBytes":537}
 member.[b,c], a < b {"exBudgetCPU":15204128,"exBudgetMemory":63581,"scriptSizeBytes":537}
 member.[b,c], a = b {"exBudgetCPU":18509205,"exBudgetMemory":77200,"scriptSizeBytes":536}
 member.[b,c], a > b, a < c {"exBudgetCPU":18461205,"exBudgetMemory":76900,"scriptSizeBytes":537}
