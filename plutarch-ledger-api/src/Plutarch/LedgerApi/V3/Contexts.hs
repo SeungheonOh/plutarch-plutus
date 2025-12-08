@@ -22,28 +22,29 @@ module Plutarch.LedgerApi.V3.Contexts (
   PTxInInfo (..),
   PTxInfo (..),
   PScriptContext (..),
-  -- TODO: Add these
-  -- pfindInputByOutRef,
+  pfindOwnInput,
   pfindDatum,
   pfindDatumHash,
-  -- pfindTxInByTxOutRef,
-  --  pfindContinuingInputs,
-  --  pgetContinuingInputs,
-  --  ptxSignedBy,
-  --  ppubKeyOutputsAt,
-  --  pvaluePaidTo,
-  --  pvalueSpent,
-  --  pvalueProduced,
-  --  pownCurrencySymbol,
-  --  pspendsOutput
+  pparseDatum,
+  pfindInputByOutRef,
+  pgetContinuingOutputs,
+  ptxSignedBy,
+  ppubKeyOutputsAt,
+  pvaluePaidTo,
+  pvalueSpent,
+  pvalueProduced,
+  pownCurrencySymbol,
+  pspendsOutput,
 ) where
 
+import Data.Kind (Type)
 import GHC.Generics (Generic)
 import Generics.SOP qualified as SOP
 import Plutarch.LedgerApi.AssocMap qualified as AssocMap
 import Plutarch.LedgerApi.Interval qualified as Interval
 import Plutarch.LedgerApi.Utils (PMaybeData, PRationalData)
-import Plutarch.LedgerApi.V1.Credential (PCredential)
+import Plutarch.LedgerApi.V1.Address (PAddress (..))
+import Plutarch.LedgerApi.V1.Credential (PCredential (PPubKeyCredential))
 import Plutarch.LedgerApi.V1.Crypto (PPubKeyHash)
 import Plutarch.LedgerApi.V1.Scripts (
   PDatum,
@@ -52,10 +53,12 @@ import Plutarch.LedgerApi.V1.Scripts (
   PScriptHash,
  )
 import Plutarch.LedgerApi.V1.Time (PPosixTime)
-import Plutarch.LedgerApi.V2.Tx (PTxOut)
+import Plutarch.LedgerApi.V2.Tx (PTxOut (..))
 import Plutarch.LedgerApi.V3.MintValue qualified as MintValue
-import Plutarch.LedgerApi.V3.Tx (PTxId, PTxOutRef)
+import Plutarch.LedgerApi.V3.Tx (PTxId, PTxOutRef (..))
+import Plutarch.LedgerApi.Value (PLedgerValue, pemptyLedgerValue)
 import Plutarch.LedgerApi.Value qualified as Value
+import Plutarch.Maybe (pmapDropNothing, pmapMaybe)
 import Plutarch.Prelude
 import PlutusLedgerApi.V3 qualified as Plutus
 
@@ -846,6 +849,22 @@ deriving via
 -- | @since 3.4.0
 instance PTryFrom PData (PAsData PScriptContext)
 
+{- | Find the input currently being validated.
+
+@since wip
+-}
+pfindOwnInput :: forall (s :: S). Term s (PScriptContext :--> PMaybe PTxInInfo)
+pfindOwnInput =
+  phoistAcyclic $
+    plam $ \scriptCtx ->
+      pmatch scriptCtx $ \ctx ->
+        plet (pscriptContext'scriptInfo ctx) $ \scriptInfo ->
+          pmatch scriptInfo $ \case
+            PSpendingScript outRef _ ->
+              pmatch (pscriptContext'txInfo ctx) $ \txInfo ->
+                pfindInputByOutRef # pfromData (ptxInfo'inputs txInfo) # outRef
+            _ -> pcon PNothing
+
 {- | Find the datum corresponding to a datum hash, if there is one.
 
 @since 3.1.0
@@ -883,3 +902,266 @@ pfindDatumHash = phoistAcyclic $ plam $ \d txI ->
     matches = phoistAcyclic $ plam $ \needle p ->
       pmatch p $ \(PBuiltinPair _ thing) ->
         needle #== pfromData thing
+
+{- | Lookup up the datum given the datum hash.
+
+  Takes as argument the datum assoc list from a `PTxInfo`. Validates the datum
+  using `PTryFrom`.
+
+  __Example:__
+
+  @
+  pparseDatum @MyType # datumHash #$ pfield @"datums" # txinfo
+  @
+
+  @since 2.1.2
+-}
+pparseDatum ::
+  forall (a :: S -> Type) (s :: S).
+  PTryFrom PData (PAsData a) =>
+  Term s (PDatumHash :--> AssocMap.PUnsortedMap PDatumHash PDatum :--> PMaybe (PAsData a))
+pparseDatum = phoistAcyclic $ plam $ \dh datums ->
+  pmatch (AssocMap.plookup # dh # AssocMap.punsafeCoerceToSortedMap datums) $ \case
+    PNothing -> pcon PNothing
+    PJust datum -> pcon . PJust $ ptryFrom (pto datum) fst
+
+{- | Look up an input by its output reference.
+
+  Returns the input corresponding to the given output reference from a list of
+  inputs. If no matching input exists, the result is `PNothing`.
+
+  __Example:__
+
+  @
+  ctx <- tcont $ pletFields @["txInfo", "purpose"] sc
+  pmatchC (getField @"purpose" ctx) >>= \case
+    PSpending outRef' -> do
+      let outRef = pfield @"_0" # outRef'
+          inputs = pfield @"inputs" # (getField @"txInfo" ctx)
+      pure $ pfindInputByOutRef # inputs # outRef
+    _ ->
+      pure $ ptraceInfoError "not a spending tx"
+  @
+
+  @since 3.5.0
+-}
+pfindInputByOutRef ::
+  forall (s :: S).
+  Term
+    s
+    ( PBuiltinList (PAsData PTxInInfo)
+        :--> PTxOutRef
+        :--> PMaybe PTxInInfo
+    )
+pfindInputByOutRef = phoistAcyclic $
+  plam $ \inputs outRef ->
+    pmapMaybe # plam pfromData #$ pfind # (matches # outRef) # inputs
+  where
+    matches ::
+      forall (s' :: S).
+      Term s' (PTxOutRef :--> PAsData PTxInInfo :--> PBool)
+    matches = phoistAcyclic $
+      plam $ \outRef txininfo ->
+        pmatch (pfromData txininfo) $ \ininfo ->
+          outRef #== ptxInInfo'outRef ininfo
+
+{- | Find the output txns corresponding to the input being validated.
+
+  Takes as arguments the inputs, outputs and the spending transaction referenced
+  from `PScriptPurpose`.
+
+  __Example:__
+
+  @
+  ctx <- tcont $ pletFields @["txInfo", "purpose"] sc
+  pmatchC (getField @"purpose" ctx) >>= \case
+    PSpending outRef' -> do
+      let outRef = pfield @"_0" # outRef'
+          inputs = pfield @"inputs" # (getField @"txInfo" ctx)
+          outputs = pfield @"outputs" # (getField @"txInfo" ctx)
+      pure $ pgetContinuingOutputs # inputs # outputs # outRef
+    _ ->
+      pure $ ptraceInfoError "not a spending tx"
+  @
+
+  @since 2.1.0
+-}
+pgetContinuingOutputs ::
+  forall (s :: S).
+  Term
+    s
+    ( PBuiltinList (PAsData PTxInInfo)
+        :--> PBuiltinList PTxOut
+        :--> PTxOutRef
+        :--> PBuiltinList PTxOut
+    )
+pgetContinuingOutputs = phoistAcyclic $
+  plam $ \inputs outputs outRef ->
+    pmatch (pfindInputByOutRef # inputs # outRef) $ \case
+      PJust tx -> unTermCont $ do
+        txInInfo <- pmatchC tx
+        txOut <- pmatchC $ ptxInInfo'resolved txInInfo
+        outAddr <- pletC $ ptxOut'address txOut
+
+        pure $ pfilter # (matches # outAddr) # outputs
+      PNothing ->
+        ptraceInfoError "can't get any continuing outputs"
+  where
+    matches ::
+      forall (s' :: S).
+      Term s' (PAddress :--> PTxOut :--> PBool)
+    matches = phoistAcyclic $
+      plam $ \adr txOut ->
+        pmatch txOut $ \out ->
+          adr #== ptxOut'address out
+
+{- | Check if a transaction was signed by the given public key.
+
+@since wip
+-}
+ptxSignedBy :: forall (s :: S). Term s (PTxInfo :--> PPubKeyHash :--> PBool)
+ptxSignedBy =
+  plam $ \txInfo pkh ->
+    pmatch txInfo $ \tx ->
+      plet (pdata pkh) $ \pkhData ->
+        pelem # pkhData # pfromData (ptxInfo'signatories tx)
+
+{- | Get the Values paid to a public key address by a pending transaction.
+
+@since wip
+-}
+ppubKeyOutputsAt ::
+  forall (s :: S).
+  Term
+    s
+    ( PTxInfo
+        :--> PPubKeyHash
+        :--> PBuiltinList (PAsData PLedgerValue)
+    )
+ppubKeyOutputsAt =
+  phoistAcyclic $
+    plam $ \txInfo targetPkh ->
+      unTermCont $ do
+        tx <- pmatchC txInfo
+        outputs <- pletC $ pfromData $ ptxInfo'outputs tx
+        pure $
+          pmapDropNothing
+            # plam
+              ( \out ->
+                  unTermCont $ do
+                    txOut <- pmatchC $ pfromData out
+                    addr <- pmatchC $ ptxOut'address txOut
+                    payCred <- pmatchC $ paddress'credential addr
+                    pure $ case payCred of
+                      PPubKeyCredential pkh ->
+                        pif
+                          (pfromData pkh #== targetPkh)
+                          (pcon $ PJust $ ptxOut'value txOut)
+                          (pcon PNothing)
+                      _ ->
+                        pcon PNothing
+              )
+            # outputs
+
+{- | Get the total value paid to a public key address by a pending transaction.
+
+@since wip
+-}
+pvaluePaidTo :: forall (s :: S). Term s (PTxInfo :--> PPubKeyHash :--> PLedgerValue)
+pvaluePaidTo =
+  phoistAcyclic $
+    plam $ \txInfo pkh ->
+      plet (ppubKeyOutputsAt # txInfo # pkh) $ \vals ->
+        pfoldl
+          # plam (\x y -> x <> pfromData y)
+          # pemptyLedgerValue
+          # vals
+
+{- Get the total value of inputs spent by this transaction.
+
+@since wip
+-}
+pvalueSpent :: forall (s :: S). Term s (PTxInfo :--> PLedgerValue)
+pvalueSpent =
+  phoistAcyclic $
+    plam $ \txInfo ->
+      unTermCont $ do
+        tx <- pmatchC txInfo
+        inputs <- pletC $ pfromData $ ptxInfo'inputs tx
+        pure $
+          pfoldl
+            # plam
+              ( \acc inp ->
+                  unTermCont $ do
+                    txInInfo <- pmatchC $ pfromData inp
+                    resolved <- pmatchC $ ptxInInfo'resolved txInInfo
+                    val <- pletC $ pfromData $ ptxOut'value resolved
+                    pure $ acc <> val
+              )
+            # pemptyLedgerValue
+            # inputs
+
+{- Get the total value of outputs produced by this transaction.
+
+@since wip
+-}
+pvalueProduced :: forall (s :: S). Term s (PTxInfo :--> PLedgerValue)
+pvalueProduced =
+  phoistAcyclic $
+    plam $ \txInfo ->
+      unTermCont $ do
+        tx <- pmatchC txInfo
+        outputs <- pletC $ pfromData $ ptxInfo'outputs tx
+        pure $
+          pfoldl
+            # plam
+              ( \acc out ->
+                  unTermCont $ do
+                    txOut <- pmatchC $ pfromData out
+                    val <- pletC $ pfromData $ ptxOut'value txOut
+                    pure $ acc <> val
+              )
+            # pemptyLedgerValue
+            # outputs
+
+{- | Get the 'PCurrencySymbol' of the current minting policy script.
+
+@since wip
+-}
+pownCurrencySymbol :: forall (s :: S). Term s (PScriptContext :--> PMaybe Value.PCurrencySymbol)
+pownCurrencySymbol =
+  phoistAcyclic $
+    plam $ \scriptCtx ->
+      pmatch scriptCtx $ \ctx ->
+        plet (pscriptContext'scriptInfo ctx) $ \scriptInfo ->
+          pmatch scriptInfo $ \case
+            PMintingScript cs ->
+              pcon $ PJust $ pfromData cs
+            _ ->
+              pcon PNothing
+
+{- | Check if the pending transaction spends a specific transaction output
+(identified by the hash of a transaction and an index into that
+transactions' outputs)
+
+@since wip
+-}
+pspendsOutput :: forall (s :: S). Term s (PTxInfo :--> PTxId :--> PInteger :--> PBool)
+pspendsOutput =
+  phoistAcyclic $
+    plam $ \txInfo txHash outIdx ->
+      unTermCont $ do
+        tx <- pmatchC txInfo
+        inputs <- pletC $ pfromData $ ptxInfo'inputs tx
+        pure $
+          pany
+            # plam
+              ( \inp ->
+                  unTermCont $ do
+                    txInInfo <- pmatchC $ pfromData inp
+                    outRef <- pmatchC $ ptxInInfo'outRef txInInfo
+                    pure $
+                      (pfromData (ptxOutRef'id outRef) #== txHash)
+                        #&& (pfromData (ptxOutRef'idx outRef) #== outIdx)
+              )
+            # inputs
