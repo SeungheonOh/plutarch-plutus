@@ -43,6 +43,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Plutarch.LedgerApi.V3.Contexts`.
 * The signature of `pgetContinuingOutputs` has also been updated to align with
   the corresponding definition in `plutus-ledger-api`.
+* In `Plutarch.LedgerApi.AssocMap`, `pfoldMapWithKey` and `pfoldlWithKey`
+  functions now accept `PUnsortedMap` instead of `PSortedMap`, making them more
+  generic.
+* In `Plutarch.LedgerApi.Interval`, renamed `palways` to `punbounded`. 
 
 ### Removed
 
