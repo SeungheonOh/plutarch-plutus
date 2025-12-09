@@ -33,6 +33,7 @@ import Plutarch.Test.Suite.PlutarchLedgerApi.Utils qualified as Utils
 import Plutarch.Test.Suite.PlutarchLedgerApi.V1 qualified as V1
 import Plutarch.Test.Suite.PlutarchLedgerApi.V2 qualified as V2
 import Plutarch.Test.Suite.PlutarchLedgerApi.V3 qualified as V3
+import Plutarch.Test.Suite.PlutarchLedgerApi.V3.Contexts qualified as V3.Contexts
 import Plutarch.Test.Suite.PlutarchLedgerApi.Value.AssetClass qualified as AssetClass
 import Test.Tasty (adjustOption, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (QuickCheckTests)
@@ -41,48 +42,52 @@ main :: IO ()
 main = do
   -- Pre-emptively avoid encoding issues
   setLocaleEncoding utf8
-  defaultMain . adjustOption moreTests . testGroup "Tests" $
-    [ testGroup
-        "Plutarch"
-        [ Array.tests
-        , Bool.tests
-        , ByteString.tests
-        , DeriveAsTag.tests
-        , Either.tests
-        , Field.tests
-        , Integer.tests
-        , List.tests
-        , Maybe.tests
-        , Monadic.tests
-        , PLam.tests
-        , POrd.tests
-        , Pair.tests
-        , Parse.tests
-        , Positive.tests
-        , Rational.tests
-        , Recursion.tests
-        , Scripts.tests
-        , Show.tests
-        , String.tests
-        , Tracing.tests
-        , Unit.tests
-        , Uplc.tests
-        , Semigroup.tests
-        , Unroll.tests
-        ]
+  defaultMain . testGroup "Tests" $
+    [ adjustOption moreTests $
+        testGroup
+          "Plutarch"
+          [ Array.tests
+          , Bool.tests
+          , ByteString.tests
+          , DeriveAsTag.tests
+          , Either.tests
+          , Field.tests
+          , Integer.tests
+          , List.tests
+          , Maybe.tests
+          , Monadic.tests
+          , PLam.tests
+          , POrd.tests
+          , Pair.tests
+          , Parse.tests
+          , Positive.tests
+          , Rational.tests
+          , Recursion.tests
+          , Scripts.tests
+          , Show.tests
+          , String.tests
+          , Tracing.tests
+          , Unit.tests
+          , Uplc.tests
+          , Semigroup.tests
+          , Unroll.tests
+          ]
     , testGroup
         "PlutarchLedgerApi"
-        [ testGroup
-            "Laws"
-            [ Utils.tests
-            , AssetClass.tests
-            , AssocMap.tests
-            , V1.tests
-            , V2.tests
-            , V3.tests
-            , PLAParse.tests
-            ]
-        , testGroup "Regressions" Regressions.tests
+        [ V3.Contexts.tests -- NOTE: slow tests
+        , adjustOption moreTests $
+            testGroup
+              "Laws"
+              [ Utils.tests
+              , AssetClass.tests
+              , AssocMap.tests
+              , V1.tests
+              , V2.tests
+              , V3.tests
+              , PLAParse.tests
+              ]
+        , adjustOption moreTests $
+            testGroup "Regressions" Regressions.tests
         ]
     ]
   where

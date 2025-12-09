@@ -22,28 +22,30 @@ module Plutarch.LedgerApi.V3.Contexts (
   PTxInInfo (..),
   PTxInfo (..),
   PScriptContext (..),
-  -- TODO: Add these
-  -- pfindInputByOutRef,
+  pfindOwnInput,
   pfindDatum,
   pfindDatumHash,
-  -- pfindTxInByTxOutRef,
-  --  pfindContinuingInputs,
-  --  pgetContinuingInputs,
-  --  ptxSignedBy,
-  --  ppubKeyOutputsAt,
-  --  pvaluePaidTo,
-  --  pvalueSpent,
-  --  pvalueProduced,
-  --  pownCurrencySymbol,
-  --  pspendsOutput
+  pparseDatum,
+  pfindTxInByTxOutRef,
+  pfindContinuingOutputs,
+  pgetContinuingOutputs,
+  ptxSignedBy,
+  ppubKeyOutputsAt,
+  pvaluePaidTo,
+  pvalueSpent,
+  pvalueProduced,
+  pownCurrencySymbol,
+  pspendsOutput,
 ) where
 
+import Data.Kind (Type)
 import GHC.Generics (Generic)
 import Generics.SOP qualified as SOP
 import Plutarch.LedgerApi.AssocMap qualified as AssocMap
 import Plutarch.LedgerApi.Interval qualified as Interval
 import Plutarch.LedgerApi.Utils (PMaybeData, PRationalData)
-import Plutarch.LedgerApi.V1.Credential (PCredential)
+import Plutarch.LedgerApi.V1.Address (PAddress (..))
+import Plutarch.LedgerApi.V1.Credential (PCredential (PPubKeyCredential))
 import Plutarch.LedgerApi.V1.Crypto (PPubKeyHash)
 import Plutarch.LedgerApi.V1.Scripts (
   PDatum,
@@ -52,10 +54,12 @@ import Plutarch.LedgerApi.V1.Scripts (
   PScriptHash,
  )
 import Plutarch.LedgerApi.V1.Time (PPosixTime)
-import Plutarch.LedgerApi.V2.Tx (PTxOut)
+import Plutarch.LedgerApi.V2.Tx (PTxOut (..))
 import Plutarch.LedgerApi.V3.MintValue qualified as MintValue
-import Plutarch.LedgerApi.V3.Tx (PTxId, PTxOutRef)
+import Plutarch.LedgerApi.V3.Tx (PTxId, PTxOutRef (..))
+import Plutarch.LedgerApi.Value (PLedgerValue, pemptyLedgerValue)
 import Plutarch.LedgerApi.Value qualified as Value
+import Plutarch.Maybe (pmapDropNothing, pmapMaybe)
 import Plutarch.Prelude
 import PlutusLedgerApi.V3 qualified as Plutus
 
@@ -846,13 +850,27 @@ deriving via
 -- | @since 3.4.0
 instance PTryFrom PData (PAsData PScriptContext)
 
+{- | Find the input currently being validated.
+
+@since wip
+-}
+pfindOwnInput :: forall (s :: S). Term s (PScriptContext :--> PMaybe PTxInInfo)
+pfindOwnInput =
+  phoistAcyclic $
+    plam $ \scriptCtx ->
+      pmatch scriptCtx $ \ctx ->
+        plet (pscriptContext'scriptInfo ctx) $ \scriptInfo ->
+          pmatch scriptInfo $ \case
+            PSpendingScript outRef _ ->
+              pfindTxInByTxOutRef # outRef # pscriptContext'txInfo ctx
+            _ ->
+              pcon PNothing
+
 {- | Find the datum corresponding to a datum hash, if there is one.
 
 @since 3.1.0
 -}
-pfindDatum ::
-  forall (s :: S).
-  Term s (PDatumHash :--> PTxInfo :--> PMaybe PDatum)
+pfindDatum :: forall (s :: S). Term s (PDatumHash :--> PTxInfo :--> PMaybe PDatum)
 pfindDatum = phoistAcyclic $ plam $ \dh txI ->
   pmatch txI $ \tx ->
     AssocMap.plookup # dh # AssocMap.punsafeCoerceToSortedMap (pfromData (ptxInfo'data tx))
@@ -861,9 +879,7 @@ pfindDatum = phoistAcyclic $ plam $ \dh txI ->
 
 @since 3.1.0
 -}
-pfindDatumHash ::
-  forall (s :: S).
-  Term s (PDatum :--> PTxInfo :--> PMaybe PDatumHash)
+pfindDatumHash :: forall (s :: S). Term s (PDatum :--> PTxInfo :--> PMaybe PDatumHash)
 pfindDatumHash = phoistAcyclic $ plam $ \d txI ->
   pmatch txI $ \tx ->
     pmatch (pfromData (ptxInfo'data tx)) $ \(AssocMap.PUnsortedMap ell) ->
@@ -883,3 +899,274 @@ pfindDatumHash = phoistAcyclic $ plam $ \d txI ->
     matches = phoistAcyclic $ plam $ \needle p ->
       pmatch p $ \(PBuiltinPair _ thing) ->
         needle #== pfromData thing
+
+{- | Lookup up the datum given the datum hash.
+
+  Takes as argument the datum assoc list from a `PTxInfo`. Validates the datum
+  using `PTryFrom`.
+
+  __Example:__
+
+  @
+  pparseDatum @MyType # datumHash #$ pfield @"datums" # txinfo
+  @
+
+  @since 2.1.2
+-}
+pparseDatum ::
+  forall (a :: S -> Type) (s :: S).
+  PTryFrom PData (PAsData a) =>
+  Term s (PDatumHash :--> AssocMap.PUnsortedMap PDatumHash PDatum :--> PMaybe (PAsData a))
+pparseDatum = phoistAcyclic $ plam $ \dh datums ->
+  pmatch (AssocMap.plookup # dh # AssocMap.punsafeCoerceToSortedMap datums) $ \case
+    PNothing -> pcon PNothing
+    PJust datum -> pcon . PJust $ ptryFrom (pto datum) fst
+
+{- | Given a UTXO reference and a transaction ('PTxInfo'), resolve it to one of
+the transaction's inputs ('PTxInInfo'). If no matching input exists, the result
+is 'PNothing'.
+
+= NOTE
+
+This only searches the true transaction inputs and not the referenced
+transaction inputs.
+
+@since wip
+-}
+pfindTxInByTxOutRef ::
+  forall (s :: S).
+  Term
+    s
+    ( PTxOutRef
+        :--> PTxInfo
+        :--> PMaybe PTxInInfo
+    )
+pfindTxInByTxOutRef = phoistAcyclic $
+  plam $ \outRef txInfo ->
+    pmatch txInfo $ \tx ->
+      plet (ptxInfo'inputs tx) $ \inputs ->
+        pmapMaybe # plam pfromData #$ pfind # (matches # outRef) # pfromData inputs
+  where
+    matches ::
+      forall (s' :: S).
+      Term s' (PTxOutRef :--> PAsData PTxInInfo :--> PBool)
+    matches = phoistAcyclic $
+      plam $ \outRef txininfo ->
+        pmatch (pfromData txininfo) $ \ininfo ->
+          outRef #== ptxInInfo'outRef ininfo
+
+{- | Find the indices of all the outputs that pay to the same script address we
+are currently spending from, if any.
+
+@since wip
+-}
+pfindContinuingOutputs :: forall (s :: S). Term s (PScriptContext :--> PBuiltinList PInteger)
+pfindContinuingOutputs =
+  phoistAcyclic $
+    plam $ \scriptCtx ->
+      pmatch (pfindOwnInput # scriptCtx) $ \case
+        PNothing ->
+          ptraceInfoError "can't find any continuing outputs: invalid script purpose"
+        PJust ownInput ->
+          unTermCont $ do
+            ctx <- pmatchC scriptCtx
+            txInfo <- pmatchC $ pscriptContext'txInfo ctx
+            outputs <- pletC $ pfromData $ ptxInfo'outputs txInfo
+            txInInfo <- pmatchC ownInput
+            resolved <- pmatchC $ ptxInInfo'resolved txInInfo
+            addr <- pletC $ ptxOut'address resolved
+            PPair indices _ <-
+              pmatchC $
+                pfoldr
+                  # plam
+                    ( \out acc ->
+                        pmatch acc $ \(PPair indices currentIdx) ->
+                          pmatch (pfromData out) $ \txOut ->
+                            pif
+                              (ptxOut'address txOut #== addr)
+                              (pcon $ PPair (pcons # currentIdx # indices) (currentIdx #- 1))
+                              (pcon $ PPair indices (currentIdx #- 1))
+                    )
+                  # pcon (PPair pnil $ (plength # outputs) #- 1)
+                  # outputs
+            pure indices
+
+{- | Get all the outputs that pay to the same script address we are currently
+spending from, if any.
+
+@since wip
+-}
+pgetContinuingOutputs :: forall (s :: S). Term s (PScriptContext :--> PBuiltinList (PAsData PTxOut))
+pgetContinuingOutputs =
+  phoistAcyclic $
+    plam $ \scriptCtx ->
+      pmatch (pfindOwnInput # scriptCtx) $ \case
+        PNothing ->
+          ptraceInfoError "can't get any continuing outputs: invalid script purpose"
+        PJust ownInput ->
+          unTermCont $ do
+            ctx <- pmatchC scriptCtx
+            txInfo <- pmatchC $ pscriptContext'txInfo ctx
+            outputs <- pletC $ pfromData $ ptxInfo'outputs txInfo
+            txInInfo <- pmatchC ownInput
+            resolved <- pmatchC $ ptxInInfo'resolved txInInfo
+            addr <- pletC $ ptxOut'address resolved
+            pure $
+              pfilter
+                # plam
+                  ( \out ->
+                      pmatch (pfromData out) $ \txOut ->
+                        ptxOut'address txOut #== addr
+                  )
+                # outputs
+
+{- | Check if a transaction was signed by the given public key.
+
+@since wip
+-}
+ptxSignedBy :: forall (s :: S). Term s (PTxInfo :--> PPubKeyHash :--> PBool)
+ptxSignedBy =
+  plam $ \txInfo pkh ->
+    pmatch txInfo $ \tx ->
+      plet (pdata pkh) $ \pkhData ->
+        pelem # pkhData # pfromData (ptxInfo'signatories tx)
+
+{- | Get the Values paid to a public key address by a pending transaction.
+
+@since wip
+-}
+ppubKeyOutputsAt ::
+  forall (s :: S).
+  Term
+    s
+    ( PPubKeyHash
+        :--> PTxInfo
+        :--> PBuiltinList (PAsData PLedgerValue)
+    )
+ppubKeyOutputsAt =
+  phoistAcyclic $
+    plam $ \targetPkh txInfo ->
+      unTermCont $ do
+        tx <- pmatchC txInfo
+        outputs <- pletC $ pfromData $ ptxInfo'outputs tx
+        pure $
+          pmapDropNothing
+            # plam
+              ( \out ->
+                  unTermCont $ do
+                    txOut <- pmatchC $ pfromData out
+                    addr <- pmatchC $ ptxOut'address txOut
+                    payCred <- pmatchC $ paddress'credential addr
+                    pure $ case payCred of
+                      PPubKeyCredential pkh ->
+                        pif
+                          (pfromData pkh #== targetPkh)
+                          (pcon $ PJust $ ptxOut'value txOut)
+                          (pcon PNothing)
+                      _ ->
+                        pcon PNothing
+              )
+            # outputs
+
+{- | Get the total value paid to a public key address by a pending transaction.
+
+@since wip
+-}
+pvaluePaidTo :: forall (s :: S). Term s (PTxInfo :--> PPubKeyHash :--> PLedgerValue)
+pvaluePaidTo =
+  phoistAcyclic $
+    plam $ \txInfo pkh ->
+      plet (ppubKeyOutputsAt # pkh # txInfo) $ \vals ->
+        pfoldl
+          # plam (\x y -> x <> pfromData y)
+          # pemptyLedgerValue
+          # vals
+
+{- Get the total value of inputs spent by this transaction.
+
+@since wip
+-}
+pvalueSpent :: forall (s :: S). Term s (PTxInfo :--> PLedgerValue)
+pvalueSpent =
+  phoistAcyclic $
+    plam $ \txInfo ->
+      unTermCont $ do
+        tx <- pmatchC txInfo
+        inputs <- pletC $ pfromData $ ptxInfo'inputs tx
+        pure $
+          pfoldl
+            # plam
+              ( \acc inp ->
+                  unTermCont $ do
+                    txInInfo <- pmatchC $ pfromData inp
+                    resolved <- pmatchC $ ptxInInfo'resolved txInInfo
+                    val <- pletC $ pfromData $ ptxOut'value resolved
+                    pure $ acc <> val
+              )
+            # pemptyLedgerValue
+            # inputs
+
+{- Get the total value of outputs produced by this transaction.
+
+@since wip
+-}
+pvalueProduced :: forall (s :: S). Term s (PTxInfo :--> PLedgerValue)
+pvalueProduced =
+  phoistAcyclic $
+    plam $ \txInfo ->
+      unTermCont $ do
+        tx <- pmatchC txInfo
+        outputs <- pletC $ pfromData $ ptxInfo'outputs tx
+        pure $
+          pfoldl
+            # plam
+              ( \acc out ->
+                  unTermCont $ do
+                    txOut <- pmatchC $ pfromData out
+                    val <- pletC $ pfromData $ ptxOut'value txOut
+                    pure $ acc <> val
+              )
+            # pemptyLedgerValue
+            # outputs
+
+{- | Get the 'PCurrencySymbol' of the current minting policy script.
+
+@since wip
+-}
+pownCurrencySymbol :: forall (s :: S). Term s (PScriptContext :--> PMaybe Value.PCurrencySymbol)
+pownCurrencySymbol =
+  phoistAcyclic $
+    plam $ \scriptCtx ->
+      pmatch scriptCtx $ \ctx ->
+        plet (pscriptContext'scriptInfo ctx) $ \scriptInfo ->
+          pmatch scriptInfo $ \case
+            PMintingScript cs ->
+              pcon $ PJust $ pfromData cs
+            _ ->
+              pcon PNothing
+
+{- | Check if the pending transaction spends a specific transaction output
+(identified by the hash of a transaction and an index into that
+transactions' outputs)
+
+@since wip
+-}
+pspendsOutput :: forall (s :: S). Term s (PTxInfo :--> PTxId :--> PInteger :--> PBool)
+pspendsOutput =
+  phoistAcyclic $
+    plam $ \txInfo txHash outIdx ->
+      unTermCont $ do
+        tx <- pmatchC txInfo
+        inputs <- pletC $ pfromData $ ptxInfo'inputs tx
+        pure $
+          pany
+            # plam
+              ( \inp ->
+                  unTermCont $ do
+                    txInInfo <- pmatchC $ pfromData inp
+                    outRef <- pmatchC $ ptxInInfo'outRef txInInfo
+                    pure $
+                      (pfromData (ptxOutRef'id outRef) #== txHash)
+                        #&& (pfromData (ptxOutRef'idx outRef) #== outIdx)
+              )
+            # inputs

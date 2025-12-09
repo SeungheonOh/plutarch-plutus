@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 * Missing `PValidateData` instances for plutarch-ledger-api types.
 * `phasZeroTokenQuantities`, `phasAdaEntry`, and `phasZeroAdaEntry` functions
   to `Plutarch.LedgerApi.Value`. 
+* The following functions have been added to `Plutarch.LedgerApi.V3.Contexts`:
+  `pfindOwnInput`, `pfindContinuingOutputs`, `ptxSignedBy`, `ppubKeyOutputsAt`,
+  `pvaluePaidTo`, `pvalueSpent`, `pvalueProduced`, `pownCurrencySymbol`, and
+  `pspendsOutput`.
 
 ### Changed
 
@@ -32,6 +36,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 * In `Plutarch.LedgerApi.Value`, `passertSorted` has been deprecated in favor
   of `ppromoteToSortedValue`.
 * `PSortedMap` and all sorted Value types now disallow duplicate keys.
+* `pfindInputByOutRef` has been renamed to `pfindTxInByTxOutRef`, its
+  signature updated to match the corresponding `plutus-ledger-api` definition,
+  and the function has been moved to `Plutarch.LedgerApi.V3.Contexts`. 
+* `pparseDatum` and `pgetContinuingOutputs` have been moved to
+  `Plutarch.LedgerApi.V3.Contexts`.
+* The signature of `pgetContinuingOutputs` has also been updated to align with
+  the corresponding definition in `plutus-ledger-api`.
 * In `Plutarch.LedgerApi.AssocMap`, `pfoldMapWithKey` and `pfoldlWithKey`
   functions now accept `PUnsortedMap` instead of `PSortedMap`, making them more
   generic.
