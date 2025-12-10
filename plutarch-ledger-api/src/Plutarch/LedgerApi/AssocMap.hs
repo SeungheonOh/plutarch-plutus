@@ -108,6 +108,25 @@ import PlutusLedgerApi.V3 qualified as Plutus
 import PlutusTx.AssocMap qualified as PlutusMap
 import Prelude hiding (pred)
 
+{- NOTE for developers:
+
+Both 'PUnsortedMap' and 'PSortedMap' use 'PAssocMap' as their underlying type.
+
+When adding new functions, please follow these guidelines:
+
+1. If a function should only operate on sorted maps, restrict it to 'PSortedMap'.
+
+2. If a function should work with both sorted and unsorted maps but does not
+   return a map (see 'pnull'), use 'PUnsortedMap'. Any 'PSortedMap' can be
+   safely downgraded to 'PUnsortedMap' using 'pforgetSorted' without any runtime
+   cost.
+
+3. If a function can return either a sorted or unsorted map (see 'pmap'), use
+   the constraint 'PInner (t k v) ~ PAssocMap k v'. Using 'PUnsortedMap' for
+   such functions would require the user to unsafely cast the resulting map,
+   which is obviously undesirable.
+-}
+
 ----------------------------------------------------------------------
 
 -- | @since 3.5.0
@@ -851,12 +870,10 @@ pany = phoistAcyclic $
       # plam (\pair -> pmatch pair $ \(PBuiltinPair _ y) -> pred # pfromData y)
       # pto (pto m)
 
--- TODO: make `pfoldMapWithKey` and `pfoldlWithKey` more generic?
-
 {- | Project all key-value pairs into a 'Monoid', then combine. Keys and values
 will be presented in key order.
 
-@since 2.1.1
+@since wip
 -}
 pfoldMapWithKey ::
   forall (m :: S -> Type) (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -864,22 +881,22 @@ pfoldMapWithKey ::
   , PIsData v
   , forall (s' :: S). Monoid (Term s' m)
   ) =>
-  Term s ((k :--> v :--> m) :--> PSortedMap k v :--> m)
+  Term s ((k :--> v :--> m) :--> PUnsortedMap k v :--> m)
 pfoldMapWithKey = phoistAcyclic $
   plam $ \f kvs ->
     pfoldlWithKey # plam (\acc k v -> acc <> (f # k # v)) # mempty # kvs
 
-{- | Left-associative fold of a 'PSortedMap' with keys. Keys and values will be
+{- | Left-associative fold with keys. Keys and values will be
 presented in key order.
 
-@since 2.1.1
+@since wip
 -}
 pfoldlWithKey ::
   forall (a :: S -> Type) (k :: S -> Type) (v :: S -> Type) (s :: S).
   ( PIsData k
   , PIsData v
   ) =>
-  Term s ((a :--> k :--> v :--> a) :--> a :--> PSortedMap k v :--> a)
+  Term s ((a :--> k :--> v :--> a) :--> a :--> PUnsortedMap k v :--> a)
 pfoldlWithKey = phoistAcyclic $
   plam $ \f x kvs ->
     pfoldl

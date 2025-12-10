@@ -16,7 +16,7 @@ module Plutarch.LedgerApi.Interval (
   psingleton,
   pfrom,
   pto,
-  palways,
+  punbounded,
   pinterval,
   pinclusiveLowerBound,
   pinclusiveUpperBound,
@@ -383,17 +383,15 @@ pto = phoistAcyclic $
         end = pcon $ PFinite a
      in pclosedInterval # start # end
 
--- TODO: Rename this, as this name is too specific to slots.
+{- | Create the unbounded interval @(-infty, +infty)@.
 
-{- | Create the interval @(-infty, +infty)@.
-
-@since 2.1.1
+@since wip
 -}
-palways ::
+punbounded ::
   forall (a :: S -> Type) (s :: S).
   (Plutus.FromData (AsHaskell a), Plutus.ToData (AsHaskell a)) =>
   Term s (PInterval a)
-palways = pconstant Plutus.always
+punbounded = pconstant Plutus.always
 
 {- | @'phull' i1 i2@ gives the smallest interval that contains both @i1@ and
 @i2@.

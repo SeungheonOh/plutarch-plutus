@@ -1,4 +1,4 @@
-constants.always program
+constants.unbounded program
   1.1.0
   (Constr 0
      [Constr 0 [Constr 0 [], Constr 1 []], Constr 0 [Constr 2 [], Constr 1 []]])
@@ -528,7 +528,7 @@ contains.out interval program
            (Constr 1 []))
         (force mkCons))
      [])
-contains.always program
+contains.unbounded program
   1.1.0
   ((\!0 ->
       (\!0 ->

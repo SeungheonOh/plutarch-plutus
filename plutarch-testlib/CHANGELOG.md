@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   golden test
 * `Plutarch.Test.Methods` for checking if implementing an optional method of a
   Plutarch type class has a performance benefit or not
+* Property tests for `Plutarch.LedgerApi.V3.Contexts` functions to ensure they
+  behave consistently with their `plutus-ledger-api` equivalents.
 
 ## 1.0.2
 
