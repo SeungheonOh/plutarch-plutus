@@ -92,6 +92,7 @@ library
     Plutarch.Test.Bench
     Plutarch.Test.Golden
     Plutarch.Test.Laws
+    Plutarch.Test.Methods
     Plutarch.Test.QuickCheck
     Plutarch.Test.SpecTypes
     Plutarch.Test.Unit
@@ -114,6 +115,7 @@ test-suite tests
     Plutarch.Test.Suite.Plutarch.List
     Plutarch.Test.Suite.Plutarch.Maybe
     Plutarch.Test.Suite.Plutarch.Monadic
+    Plutarch.Test.Suite.Plutarch.Numeric
     Plutarch.Test.Suite.Plutarch.Pair
     Plutarch.Test.Suite.Plutarch.Parse
     Plutarch.Test.Suite.Plutarch.PLam
@@ -159,6 +161,7 @@ test-suite tests
     , serialise
     , sop-core
     , tasty
+    , tasty-expected-failure
     , tasty-hunit
     , tasty-quickcheck
     , text

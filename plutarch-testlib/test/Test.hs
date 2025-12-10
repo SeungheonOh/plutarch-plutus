@@ -11,6 +11,7 @@ import Plutarch.Test.Suite.Plutarch.Integer qualified as Integer
 import Plutarch.Test.Suite.Plutarch.List qualified as List
 import Plutarch.Test.Suite.Plutarch.Maybe qualified as Maybe
 import Plutarch.Test.Suite.Plutarch.Monadic qualified as Monadic
+import Plutarch.Test.Suite.Plutarch.Numeric qualified as Numeric
 import Plutarch.Test.Suite.Plutarch.PLam qualified as PLam
 import Plutarch.Test.Suite.Plutarch.POrd qualified as POrd
 import Plutarch.Test.Suite.Plutarch.Pair qualified as Pair
@@ -56,6 +57,7 @@ main = do
           , List.tests
           , Maybe.tests
           , Monadic.tests
+          , Numeric.tests
           , PLam.tests
           , POrd.tests
           , Pair.tests

@@ -24,8 +24,11 @@ import Plutarch.Array (
   ptakeArray,
   pzipWithArray,
  )
+import Plutarch.Evaluate (evalTerm')
+import Plutarch.Internal.Term (Config (NoTracing))
 import Plutarch.Prelude
 import Plutarch.Test.Golden (goldenEval, plutarchGolden)
+import Plutarch.Test.Methods (ppowPositiveBetter, pscalePositiveBetter)
 import Plutarch.Test.QuickCheck (propEvalEqual)
 import Plutarch.Unsafe (punsafeCoerce)
 import Test.QuickCheck.Instances ()
@@ -89,6 +92,11 @@ tests =
             "zipWith f (generate n g) (generate m h) = generate (min n m) (\\i -> f (g i) (h i))"
             (\(n, m) -> ppullArrayToList $ pzipWithArray (plam (#-)) (pgenerate (pconstant n) (plam (+ 1))) $ pgenerate (pconstant m) (plam (* 2)))
             (\(n, m) -> ppullArrayToList $ pgenerate (pmin (pconstant n) (pconstant m)) (plam $ \i -> (i + 1) #- (i * 2)))
+        ]
+    , testGroup
+        "Methods"
+        [ pscalePositiveBetter (evalTerm' NoTracing sample2) (punsafeCoerce @_ @PInteger 10)
+        , ppowPositiveBetter (evalTerm' NoTracing sample2) (punsafeCoerce @_ @PInteger 10)
         ]
     ]
 
