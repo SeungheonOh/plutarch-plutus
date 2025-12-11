@@ -201,7 +201,7 @@ module Plutarch.Prelude (
   PForall (..),
 
   -- * Show
-  PShow,
+  PShow (pshow'),
   pshow,
 
   -- * Term and related functionality

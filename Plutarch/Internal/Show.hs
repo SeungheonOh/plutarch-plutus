@@ -72,7 +72,7 @@ import Plutarch.Internal.ListLike (
   pmap,
   precList,
  )
-import Plutarch.Internal.Numeric (PPositive, pquot, prem)
+import Plutarch.Internal.Numeric (PNatural, PPositive, pquot, prem)
 import Plutarch.Internal.Ord (POrd ((#<)))
 import Plutarch.Internal.PLam (PLamN (plam))
 import Plutarch.Internal.PlutusType (PlutusType, pmatch)
@@ -92,11 +92,27 @@ import Plutarch.Maybe (PMaybe)
 
 import PlutusCore qualified as PLC
 
-class PShow t where
-  {- | Return the string representation of a Plutarch value
+{- | Allows a debugging representation of the datatype as a 'PString'.
 
-  If the wrap argument is True, optionally wrap the output in `(..)` if it
+= Important note
+
+Use of 'PShow' in production scripts is not a good idea, as it requires
+considerable script budget, especially for larger or more complex values. In
+general, this type class is provided to assist with testing or debugging: be
+very careful when using it for anything else, lest it impact your
+performance.
+
+Writing manual instances of this type class is also discouraged, as it is not
+intended to be a pretty printer. In most situations, the 'Generic'-based
+derivation of instances for this type class is what you want.
+-}
+class PShow t where
+  {- | Return the 'PString' representation of a Plutarch value.
+
+  If the argument is True, wrap the output in `(..)` if it
   represents multiple parameters.
+
+  @since wip
   -}
   pshow' :: Bool -> Term s t -> Term s PString
   default pshow' :: (PGeneric t, PlutusType t, All2 PShow (PCode t)) => Bool -> Term s t -> Term s PString
@@ -354,3 +370,6 @@ instance PShow PPositive
 
 -- | @since 1.10.0
 instance PShow a => PShow (PMaybe a)
+
+-- | @since wip
+instance PShow PNatural
