@@ -9,6 +9,7 @@
   and tail are needed
 * `punsafeCase`, to give access to the UPLC `Case` construct more conveniently
 * `prfoldArray`, which folds a pull array from highest-to-lowest indexes
+* `PShow` instance for `PNatural`
 
 ## Changed
 
@@ -24,6 +25,7 @@
 * `Plutarch.Internal.Parse` definitions are now re-exported from
   `Plutarch.Prelude`. 
 * `pfoldlArray` renamed to `pfoldArray`.
+* `PShow`'s `pshow'` method is now available from the Prelude.
 
 ## Removed
 
