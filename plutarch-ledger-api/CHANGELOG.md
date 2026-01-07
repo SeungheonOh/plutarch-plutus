@@ -47,6 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   functions now accept `PUnsortedMap` instead of `PSortedMap`, making them more
   generic.
 * In `Plutarch.LedgerApi.Interval`, renamed `palways` to `punbounded`. 
+* Fields for `PInterval` have been renamed to remove a typo.
 
 ### Removed
 
