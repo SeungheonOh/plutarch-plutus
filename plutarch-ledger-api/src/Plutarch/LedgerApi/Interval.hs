@@ -42,9 +42,9 @@ import PlutusLedgerApi.V3 qualified as Plutus
 -- | @since 2.0.0
 data PInterval (a :: S -> Type) (s :: S) = PInterval
   { pinterval'from :: Term s (PLowerBound a)
-  -- ^ @since 3.6.0
+  -- ^ @since wip
   , pinterval'to :: Term s (PUpperBound a)
-  -- ^ @since 3.6.0
+  -- ^ @since wip
   }
   deriving stock
     ( -- | @since 2.0.0
