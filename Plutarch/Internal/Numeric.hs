@@ -88,6 +88,7 @@ import Plutarch.Internal.PlutusType (
   PlutusType (PInner),
   pcon,
  )
+import Plutarch.Internal.Subtype (pupcast)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -112,9 +113,10 @@ import Test.QuickCheck (
   functionMap,
  )
 import Test.QuickCheck qualified as QuickCheck
+import Test.QuickCheck.Instances ()
 
 -- | @since 1.10.0
-newtype PPositive (s :: S) = PPositive (Term s PInteger)
+newtype PPositive (s :: S) = PPositive (Term s PNatural)
   deriving stock
     ( -- | @since 1.10.0
       Generic
@@ -142,7 +144,7 @@ deriving via
     PLiftable PPositive
 
 -- | @since 1.10.0
-newtype Positive = UnsafeMkPositive {getPositive :: Integer}
+newtype Positive = UnsafeMkPositive {getPositive :: Natural}
   deriving stock
     ( -- | @since 1.10.0
       Show
@@ -154,20 +156,17 @@ newtype Positive = UnsafeMkPositive {getPositive :: Integer}
   deriving
     ( -- | @since 1.10.0
       Arbitrary
-    )
-    via QuickCheck.Positive Integer
-  deriving
-    ( -- | @since 1.10.0
+    , -- | @since 1.10.0
       CoArbitrary
     , -- | @since 1.10.0
       Pretty
     )
-    via Integer
+    via Natural
 
 -- | @since 1.10.0
 instance Function Positive where
   {-# INLINEABLE function #-}
-  function = functionMap @Integer coerce coerce
+  function = functionMap @Natural coerce coerce
 
 {- | Converts negative 'Integer's into their absolute values, positive
 'Integer's into their 'Positive' equivalents. Errors on 0.
@@ -176,13 +175,13 @@ instance Function Positive where
 -}
 toPositiveAbs :: Integer -> Positive
 toPositiveAbs i = UnsafeMkPositive $ case signum i of
-  (-1) -> abs i
+  (-1) -> fromIntegral $ abs i
   0 -> error "toPositiveAbs: called with zero"
-  _ -> i
+  _ -> fromIntegral i
 
 -- | @since 1.10.0
 positiveToInteger :: Positive -> Integer
-positiveToInteger = getPositive
+positiveToInteger = fromIntegral . getPositive
 
 -- | @since 1.10.0
 newtype PNatural (s :: S) = PNatural (Term s PInteger)
@@ -266,15 +265,15 @@ infix 6 #+
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PPositive where
-  {-# INLINEABLE (#+) #-}
-  x #+ y = punsafeCoerce $ paddInteger # pto x # pto y
+  -- {-# INLINEABLE (#+) #-}
+  -- x #+ y = punsafeCoerce $ paddInteger # pto x # pto y
   {-# INLINEABLE pscalePositive #-}
   pscalePositive b e = b #* e
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PNatural where
-  {-# INLINEABLE (#+) #-}
-  x #+ y = pcon . PNatural $ paddInteger # pto x # pto y
+  -- {-# INLINEABLE (#+) #-}
+  -- x #+ y = pcon . PNatural $ paddInteger # pto x # pto y
   {-# INLINEABLE pscalePositive #-}
   pscalePositive b e = b #* punsafeCoerce e
 
@@ -283,21 +282,21 @@ instance PAdditiveSemigroup PInteger where
   {-# INLINEABLE (#+) #-}
   x #+ y = paddInteger # x # y
   {-# INLINEABLE pscalePositive #-}
-  pscalePositive b e = b #* pto e
+  pscalePositive b e = b #* pupcast e
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PBuiltinBLS12_381_G1_Element where
   {-# INLINEABLE (#+) #-}
   x #+ y = pbls12_381_G1_add # x # y
   {-# INLINEABLE pscalePositive #-}
-  pscalePositive x p = pbls12_381_G1_scalarMul # pto p # x
+  pscalePositive x p = pbls12_381_G1_scalarMul # pupcast p # x
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PBuiltinBLS12_381_G2_Element where
   {-# INLINEABLE (#+) #-}
   x #+ y = pbls12_381_G2_add # x # y
   {-# INLINEABLE pscalePositive #-}
-  pscalePositive x p = pbls12_381_G2_scalarMul # pto p # x
+  pscalePositive x p = pbls12_381_G2_scalarMul # pupcast p # x
 
 {- | The notion of zero, as well as a way to scale by naturals.
 
@@ -413,8 +412,8 @@ class PAdditiveMonoid a => PAdditiveGroup (a :: S -> Type) where
         pzero
         ( pif
             (e' #<= pzero)
-            (pnegate # pscalePositive b (punsafeDowncast (pnegate # e')))
-            (pscalePositive b (punsafeDowncast e'))
+            (pnegate # pscalePositive b (punsafeCoerce $ pnegate # e'))
+            (pscalePositive b (punsafeCoerce e'))
         )
 
 -- | @since 1.10.0
@@ -487,14 +486,16 @@ class PMultiplicativeSemigroup (a :: S -> Type) where
 infix 6 #*
 
 -- | @since 1.10.0
-instance PMultiplicativeSemigroup PPositive where
-  {-# INLINEABLE (#*) #-}
-  x #* y = punsafeCoerce $ pmultiplyInteger # pto x # pto y
+instance PMultiplicativeSemigroup PPositive
+
+-- {-# INLINEABLE (#*) #-}
+-- x #* y = punsafeCoerce $ pmultiplyInteger # pto x # pto y
 
 -- | @since 1.10.0
-instance PMultiplicativeSemigroup PNatural where
-  {-# INLINEABLE (#*) #-}
-  x #* y = pcon . PNatural $ pmultiplyInteger # pto x # pto y
+instance PMultiplicativeSemigroup PNatural
+
+-- {-# INLINEABLE (#*) #-}
+-- x #* y = pcon . PNatural $ pmultiplyInteger # pto x # pto y
 
 -- | @since 1.10.0
 instance PMultiplicativeSemigroup PInteger where
@@ -535,7 +536,7 @@ class PMultiplicativeSemigroup a => PMultiplicativeMonoid (a :: S -> Type) where
     pif
       (n' #== pzero)
       pone
-      (ppowPositive x (pcon (PPositive $ pto n')))
+      (ppowPositive x (punsafeCoerce n'))
 
 -- | @since 1.10.0
 instance PMultiplicativeMonoid PPositive where
@@ -571,8 +572,7 @@ ppositive = phoistAcyclic $
     pif
       (i #<= pconstantInteger 0)
       (pcon PNothing)
-      $ pcon . PJust . pcon
-      $ PPositive i
+      (pcon . PJust . punsafeCoerce $ i)
 
 {- | A default implementation of exponentiation-by-squaring with a
 strictly-positive exponent.
@@ -594,12 +594,12 @@ pbySquaringDefault f b e = go # b # e
     go :: forall (s'' :: S). Term s'' (a :--> PPositive :--> a)
     go = phoistAcyclic $ pfix $ \self -> plam $ \b e -> plet e $ \e' ->
       pif
-        (pto e' #== pconstantInteger 1)
+        (pto e' #== pone)
         b
-        ( plet (self # b #$ punsafeDowncast (pquotientInteger # pto e' # pconstantInteger 2)) $ \below ->
+        ( plet (self # b #$ punsafeDowncast (punsafeDowncast (pquotientInteger # pupcast e' # pconstantInteger 2))) $ \below ->
             plet (f below below) $ \res ->
               pif
-                ((premainderInteger # pto e' # pconstantInteger 2) #== pconstantInteger 1)
+                ((premainderInteger # pupcast e' # pconstantInteger 2) #== pconstantInteger 1)
                 (f b res)
                 res
         )

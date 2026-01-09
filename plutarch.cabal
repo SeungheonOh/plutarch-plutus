@@ -163,6 +163,7 @@ library
     , plutus-tx
     , prettyprinter
     , QuickCheck
+    , quickcheck-instances
     , random
     , semialign
     , sop-core
