@@ -64,15 +64,10 @@ instance PEnumerable PPosixTime where
 
 -- | @since 3.3.0
 instance PAdditiveSemigroup PPosixTime where
-  {-# INLINEABLE (#+) #-}
-  t1 #+ t2 = pposixTime (unPPosixTime t1 #+ unPPosixTime t2)
-  {-# INLINEABLE pscalePositive #-}
   pscalePositive t p = pposixTime (unPPosixTime t #* pupcast p)
 
 -- | @since 3.3.0
 instance PAdditiveMonoid PPosixTime where
-  {-# INLINEABLE pzero #-}
-  pzero = pposixTime pzero
   {-# INLINEABLE pscaleNatural #-}
   pscaleNatural t n = pposixTime (unPPosixTime t #* pto n)
 

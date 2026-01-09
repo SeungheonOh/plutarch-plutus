@@ -265,17 +265,13 @@ infix 6 #+
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PPositive where
-  -- {-# INLINEABLE (#+) #-}
-  -- x #+ y = punsafeCoerce $ paddInteger # pto x # pto y
   {-# INLINEABLE pscalePositive #-}
   pscalePositive b e = b #* e
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PNatural where
-  -- {-# INLINEABLE (#+) #-}
-  -- x #+ y = pcon . PNatural $ paddInteger # pto x # pto y
   {-# INLINEABLE pscalePositive #-}
-  pscalePositive b e = b #* punsafeCoerce e
+  pscalePositive b e = b #* pupcast e
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PInteger where
@@ -318,6 +314,11 @@ The default implementation of 'pscaleNatural' ensures these laws hold.
 -}
 class PAdditiveSemigroup a => PAdditiveMonoid (a :: S -> Type) where
   pzero :: forall (s :: S). Term s a
+  default pzero ::
+    forall (s :: S).
+    PAdditiveMonoid (PInner a) =>
+    Term s a
+  pzero = punsafeDowncast pzero
   {-# INLINEABLE pscaleNatural #-}
   pscaleNatural ::
     forall (s :: S).
@@ -340,8 +341,6 @@ instance PAdditiveMonoid PInteger where
 
 -- | @since 1.10.0
 instance PAdditiveMonoid PNatural where
-  {-# INLINEABLE pzero #-}
-  pzero = pcon . PNatural . pconstantInteger $ 0
   {-# INLINEABLE pscaleNatural #-}
   pscaleNatural n1 n2 = n1 #* n2
 
@@ -488,14 +487,8 @@ infix 6 #*
 -- | @since 1.10.0
 instance PMultiplicativeSemigroup PPositive
 
--- {-# INLINEABLE (#*) #-}
--- x #* y = punsafeCoerce $ pmultiplyInteger # pto x # pto y
-
 -- | @since 1.10.0
 instance PMultiplicativeSemigroup PNatural
-
--- {-# INLINEABLE (#*) #-}
--- x #* y = pcon . PNatural $ pmultiplyInteger # pto x # pto y
 
 -- | @since 1.10.0
 instance PMultiplicativeSemigroup PInteger where
@@ -526,6 +519,11 @@ If you define 'ppowNatural', ensure the following as well:
 -}
 class PMultiplicativeSemigroup a => PMultiplicativeMonoid (a :: S -> Type) where
   pone :: forall (s :: S). Term s a
+  default pone ::
+    forall (s :: S).
+    PMultiplicativeMonoid (PInner a) =>
+    Term s a
+  pone = punsafeDowncast pone
   {-# INLINEABLE ppowNatural #-}
   ppowNatural ::
     forall (s :: S).
@@ -539,14 +537,10 @@ class PMultiplicativeSemigroup a => PMultiplicativeMonoid (a :: S -> Type) where
       (ppowPositive x (punsafeCoerce n'))
 
 -- | @since 1.10.0
-instance PMultiplicativeMonoid PPositive where
-  {-# INLINEABLE pone #-}
-  pone = punsafeCoerce $ pconstantInteger 1
+instance PMultiplicativeMonoid PPositive
 
 -- | @since 1.10.0
-instance PMultiplicativeMonoid PNatural where
-  {-# INLINEABLE pone #-}
-  pone = pcon . PNatural $ pconstantInteger 1
+instance PMultiplicativeMonoid PNatural
 
 -- | @since 1.10.0
 instance PMultiplicativeMonoid PInteger where
