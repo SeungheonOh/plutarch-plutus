@@ -6,6 +6,7 @@ module Plutarch.Internal.Subtype (
   PSubtype',
   pupcast,
   pto,
+  punsafeDowncast,
 ) where
 
 import Data.Kind (Constraint, Type)
@@ -68,3 +69,10 @@ pupcast = let _ = witness (Proxy @(PSubtype a b)) in punsafeCoerce
 -}
 pto :: forall (a :: S -> Type) (s :: S). Term s a -> Term s (PInner a)
 pto = punsafeCoerce
+
+{- |
+  Unsafely coerce from the 'PInner' representation of a Term,
+  assuming that the value is a safe construction of the Term.
+-}
+punsafeDowncast :: Term s (PInner a) -> Term s a
+punsafeDowncast = punsafeCoerce

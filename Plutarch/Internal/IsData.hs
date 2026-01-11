@@ -40,7 +40,12 @@ import Plutarch.Internal.PlutusType (
   PlutusType (PInner),
   pmatch,
  )
-import Plutarch.Internal.Subtype (PSubtype, pto, pupcast)
+import Plutarch.Internal.Subtype (
+  PSubtype,
+  pto,
+  punsafeDowncast,
+  pupcast,
+ )
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -52,7 +57,6 @@ import Plutarch.Internal.Term (
   (#),
   (#$),
  )
-import Plutarch.Unsafe (punsafeDowncast)
 import PlutusCore qualified as PLC
 import PlutusTx qualified as PTx
 

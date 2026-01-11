@@ -110,6 +110,7 @@ import Plutarch.Internal.Term (
   pforce,
   phoistAcyclic,
   plet,
+  punsafeCoerce,
   (#),
   (#$),
   (:-->),
@@ -133,7 +134,6 @@ import Plutarch.Internal.TryFrom (
  )
 import Plutarch.Reducible (NoReduce, Reduce)
 import Plutarch.Trace (ptraceInfoError)
-import Plutarch.Unsafe (punsafeCoerce)
 
 {- | A "record" of `exists a. PAsData a`. The underlying representation is
  `PBuiltinList PData`.

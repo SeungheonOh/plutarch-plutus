@@ -87,7 +87,7 @@ import Plutarch.Internal.PlutusType (
   PlutusType (PInner),
   pcon,
  )
-import Plutarch.Internal.Subtype (pto)
+import Plutarch.Internal.Subtype (pto, punsafeDowncast)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -102,7 +102,6 @@ import Plutarch.Internal.Term (
  )
 import Plutarch.Internal.Trace (ptraceInfo)
 import Plutarch.Maybe (PMaybe (PJust, PNothing))
-import Plutarch.Unsafe (punsafeDowncast)
 import PlutusCore qualified as PLC
 import Prettyprinter (Pretty)
 import Test.QuickCheck (

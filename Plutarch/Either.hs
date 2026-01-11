@@ -82,6 +82,7 @@ import Plutarch.Internal.Term (
   Term,
   phoistAcyclic,
   plet,
+  punsafeCoerce,
   (#),
   (#$),
   (:-->),
@@ -89,7 +90,6 @@ import Plutarch.Internal.Term (
 import Plutarch.Internal.TryFrom (PTryFrom)
 import Plutarch.Repr.SOP (DeriveAsSOPStruct (DeriveAsSOPStruct))
 import Plutarch.Trace (ptraceInfoError)
-import Plutarch.Unsafe (punsafeCoerce)
 import PlutusLedgerApi.V3 qualified as Plutus
 
 {- | SOP-encoded 'Either'.
