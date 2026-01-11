@@ -81,13 +81,13 @@ import Plutarch.Internal.Lift (
   punsafeCoercePLifted,
  )
 import Plutarch.Internal.Ord (POrd ((#<=)))
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (
   DeriveNewtypePlutusType (DeriveNewtypePlutusType),
   PlutusType (PInner),
   pcon,
  )
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   S,
   Term,

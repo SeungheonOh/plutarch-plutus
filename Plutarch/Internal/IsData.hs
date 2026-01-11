@@ -34,14 +34,13 @@ import Plutarch.Internal.Eq (PEq ((#==)))
 import Plutarch.Internal.ListLike (
   PListLike (pcons, phead, pnil, ptail),
  )
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (PLamN (plam))
 import Plutarch.Internal.PlutusType (
   PInnermost,
   PlutusType (PInner),
   pmatch,
  )
-import Plutarch.Internal.Subtype (PSubtype, pupcast)
+import Plutarch.Internal.Subtype (PSubtype, pto, pupcast)
 import Plutarch.Internal.Term (
   S,
   Term,

@@ -56,10 +56,11 @@ import Plutarch.Internal.Numeric (
 import Plutarch.Internal.Ord (
   POrd ((#<), (#<=)),
  )
-import Plutarch.Internal.Other (Flip, pto)
+import Plutarch.Internal.Other (Flip)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (PlutusType, pcon, pmatch)
 import Plutarch.Internal.Show (PShow, pshow, pshow')
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   S,
   Term,

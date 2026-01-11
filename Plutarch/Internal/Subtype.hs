@@ -5,6 +5,7 @@ module Plutarch.Internal.Subtype (
   PSubtype,
   PSubtype',
   pupcast,
+  pto,
 ) where
 
 import Data.Kind (Constraint, Type)
@@ -61,3 +62,9 @@ type family PSubtype (a :: S -> Type) (b :: S -> Type) :: Constraint where
 
 pupcast :: forall a b s. PSubtype a b => Term s b -> Term s a
 pupcast = let _ = witness (Proxy @(PSubtype a b)) in punsafeCoerce
+
+{- |
+  Safely coerce from a Term to it's 'PInner' representation.
+-}
+pto :: forall (a :: S -> Type) (s :: S). Term s a -> Term s (PInner a)
+pto = punsafeCoerce

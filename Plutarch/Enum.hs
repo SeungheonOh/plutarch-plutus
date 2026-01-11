@@ -11,8 +11,8 @@ import Plutarch.Internal.Eq ((#==))
 import Plutarch.Internal.Fix (pfix)
 import Plutarch.Internal.Numeric (PPositive, pone, (#+))
 import Plutarch.Internal.Ord (POrd)
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   S,
   Term,
