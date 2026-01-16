@@ -75,7 +75,8 @@ import Plutarch.Internal.Term (
 import Plutarch.Repr.Newtype (DeriveNewtypePlutusType (DeriveNewtypePlutusType))
 import Plutarch.Unsafe (punsafeDowncast)
 import PlutusCore qualified as PLC
-import Universe (Includes)
+import PlutusCore.Builtin (KnownBuiltinType)
+import UntypedPlutusCore qualified as UPLC
 
 {- | = Laws
 
@@ -245,7 +246,7 @@ newtype PAnd (a :: S -> Type) (s :: S)
 deriving via
   DeriveNewtypePLiftable (PAnd a) (AsHaskell a)
   instance
-    (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) => PLiftable (PAnd a)
+    (PLiftable a, KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)) => PLiftable (PAnd a)
 
 -- | @since 1.10.0
 instance PSemigroup (PAnd PBool) where
@@ -307,7 +308,7 @@ newtype POr (a :: S -> Type) (s :: S)
 deriving via
   DeriveNewtypePLiftable (POr a) (AsHaskell a)
   instance
-    (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) => PLiftable (POr a)
+    (PLiftable a, KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)) => PLiftable (POr a)
 
 -- | @since 1.10.0
 instance PSemigroup (POr PBool) where
@@ -369,7 +370,7 @@ newtype PXor (a :: S -> Type) (s :: S)
 deriving via
   DeriveNewtypePLiftable (PXor a) (AsHaskell a)
   instance
-    (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) => PLiftable (PXor a)
+    (PLiftable a, KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)) => PLiftable (PXor a)
 
 -- | @since 1.10.0
 instance PSemigroup (PXor PBool) where

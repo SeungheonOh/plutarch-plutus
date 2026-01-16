@@ -84,7 +84,7 @@ import Plutarch.Internal.Term (
 import Plutarch.Script (Script (Script))
 import Plutarch.Unsafe (punsafeCoerce)
 import PlutusCore qualified as PLC
-import PlutusCore.Builtin (BuiltinError, readKnownConstant)
+import PlutusCore.Builtin (BuiltinError, readKnownConstant, KnownBuiltinType)
 import PlutusCore.Crypto.BLS12_381.G1 qualified as BLS12_381.G1
 import PlutusCore.Crypto.BLS12_381.G2 qualified as BLS12_381.G2
 import PlutusCore.Crypto.BLS12_381.Pairing qualified as BLS12_381.Pairing
@@ -212,7 +212,7 @@ universe.
 -}
 plutToReprUni ::
   forall (a :: S -> Type).
-  (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) =>
+  (PLiftable a, KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)) =>
   (forall (s :: S). PLifted s a) ->
   Either LiftError (PlutusRepr a)
 plutToReprUni t = case compile (Tracing LogInfo DoTracing) $ unPLifted t of
@@ -287,7 +287,7 @@ newtype DeriveBuiltinPLiftable (a :: S -> Type) (h :: Type) (s :: S)
 -- | @since 1.10.0
 instance
   ( PlutusType a
-  , PLC.DefaultUni `Includes` h
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) h
   ) =>
   PLiftable (DeriveBuiltinPLiftable a h)
   where
@@ -357,7 +357,7 @@ newtype DeriveNewtypePLiftable (wrapper :: S -> Type) (h :: Type) (s :: S)
 instance
   ( PLiftable (PInner wrapper)
   , Coercible h (AsHaskell (PInner wrapper))
-  , PLC.DefaultUni `Includes` PlutusRepr (PInner wrapper)
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr (PInner wrapper))
   ) =>
   PLiftable (DeriveNewtypePLiftable wrapper h)
   where
@@ -464,9 +464,9 @@ instance
 -- | @since 1.10.0
 instance
   ( PLiftable a
-  , PLC.DefaultUni `Includes` PlutusRepr a
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)
   , PLiftable b
-  , PLC.DefaultUni `Includes` PlutusRepr b
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr b)
   ) =>
   PLiftable (PBuiltinPair a b)
   where
@@ -483,7 +483,7 @@ instance
 
 -- | @since 1.10.0
 instance
-  (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) =>
+  (PLiftable a, KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)) =>
   PLiftable (PBuiltinList a)
   where
   type AsHaskell (PBuiltinList a) = [AsHaskell a]
@@ -566,7 +566,7 @@ deriving via
     PLiftable PBuiltinBLS12_381_MlResult
 
 -- | @since 1.11.0
-instance (PLC.Contains UPLC.DefaultUni (PlutusRepr a), PLiftable a) => PLiftable (PArray a) where
+instance (KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a), PLiftable a) => PLiftable (PArray a) where
   type AsHaskell (PArray a) = StrictVector.Vector (AsHaskell a)
   type PlutusRepr (PArray a) = StrictVector.Vector (PlutusRepr a)
   {-# INLINEABLE haskToRepr #-}

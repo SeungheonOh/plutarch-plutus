@@ -276,7 +276,7 @@ instance Fractional (Term s PRational) where
           ]
           (pcon $ PRational (pto xd) (punsafeCoerce xn))
   {-# INLINEABLE fromRational #-}
-  fromRational = pconstant . PlutusTx.fromGHC
+  fromRational = pconstant . PlutusTx.fromHaskellRatio
 
 instance PShow PRational where
   pshow' _ x =

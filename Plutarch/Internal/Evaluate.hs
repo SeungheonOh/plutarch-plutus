@@ -49,7 +49,7 @@ evalScript' budget (Script (Program _ _ t)) = case evalTerm budget (UPLC.termMap
 evalScriptUnlimited :: Script -> (Either (Cek.CekEvaluationException PLC.NamedDeBruijn PLC.DefaultUni PLC.DefaultFun) Script, ExBudget, [Text])
 evalScriptUnlimited (Script (Program _ _ t)) =
   case Cek.runCekDeBruijn defaultCekParametersForTesting Cek.counting Cek.logEmitter (UPLC.termMapNames UPLC.fakeNameDeBruijn t) of
-    (errOrRes, Cek.CountingSt final, logs) -> (Script . Program () uplcVersion . UPLC.termMapNames UPLC.unNameDeBruijn <$> errOrRes, final, logs)
+    Cek.CekReport errOrRes (Cek.CountingSt final) logs -> (Script . Program () uplcVersion . UPLC.termMapNames UPLC.unNameDeBruijn <$> Cek.cekResultToEither errOrRes, final, logs)
 
 evalTerm ::
   ExBudget ->
@@ -62,4 +62,4 @@ evalTerm ::
   )
 evalTerm budget t =
   case Cek.runCekDeBruijn defaultCekParametersForTesting (Cek.restricting (ExRestrictingBudget budget)) Cek.logEmitter t of
-    (errOrRes, Cek.RestrictingSt (ExRestrictingBudget final), logs) -> (errOrRes, budget `minusExBudget` final, logs)
+    Cek.CekReport errOrRes (Cek.RestrictingSt (ExRestrictingBudget final)) logs -> (Cek.cekResultToEither errOrRes, budget `minusExBudget` final, logs)
