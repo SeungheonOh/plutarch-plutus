@@ -50,7 +50,7 @@ instance PCountable PPosixTime where
   psuccessor = phoistAcyclic $ plam (\x -> x #+ pposixTime pone)
   {-# INLINEABLE psuccessorN #-}
   psuccessorN = phoistAcyclic $ plam $ \p t ->
-    let p' = pcon . PPosixTime . pto $ p
+    let p' = pcon . PPosixTime . pupcast $ p
      in p' #+ t
 
 -- | @since 3.3.0
@@ -59,20 +59,15 @@ instance PEnumerable PPosixTime where
   ppredecessor = phoistAcyclic $ plam (\x -> x #- pposixTime pone)
   {-# INLINEABLE ppredecessorN #-}
   ppredecessorN = phoistAcyclic $ plam $ \p t ->
-    let p' = pcon . PPosixTime . pto $ p
+    let p' = pcon . PPosixTime . pupcast $ p
      in t #- p'
 
 -- | @since 3.3.0
 instance PAdditiveSemigroup PPosixTime where
-  {-# INLINEABLE (#+) #-}
-  t1 #+ t2 = pposixTime (unPPosixTime t1 #+ unPPosixTime t2)
-  {-# INLINEABLE pscalePositive #-}
-  pscalePositive t p = pposixTime (unPPosixTime t #* pto p)
+  pscalePositive t p = pposixTime (unPPosixTime t #* pupcast p)
 
 -- | @since 3.3.0
 instance PAdditiveMonoid PPosixTime where
-  {-# INLINEABLE pzero #-}
-  pzero = pposixTime pzero
   {-# INLINEABLE pscaleNatural #-}
   pscaleNatural t n = pposixTime (unPPosixTime t #* pto n)
 

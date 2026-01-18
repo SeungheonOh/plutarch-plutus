@@ -65,7 +65,7 @@ import Plutarch.Internal.PlutusType (
   PlutusType (PInner),
   pcon,
  )
-import Plutarch.Internal.Subtype (pto, punsafeDowncast)
+import Plutarch.Internal.Subtype (PSubtype, pto, punsafeDowncast, pupcast)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -129,7 +129,7 @@ instance PSemigroup PByteString where
   pstimes p bs = plet bs $ \bs' ->
     pif
       (plengthBS # bs' #== 1)
-      (preplicateBS # pto p #$ pindexBS # bs' # 0)
+      (preplicateBS # pupcast p #$ pindexBS # bs' # 0)
       (pbySquaringDefault (#<>) bs' p)
 
 {- | BLS points form a group technically, but a @PGroup@ notion would be too
@@ -412,12 +412,12 @@ instance PMonoid (PXor PByteString) where
 
 pxortimes ::
   forall (a :: S -> Type) (b :: S -> Type) (s :: S).
-  PInner a ~ PInteger =>
+  PSubtype PInteger a =>
   Term s b ->
   Term s a ->
   Term s (PXor b) ->
   Term s (PXor b)
 pxortimes def x =
   pif
-    ((pdiv # pto x # 2) #== 0)
+    ((pdiv # pupcast x # 2) #== 0)
     (pcon . PXor $ def)

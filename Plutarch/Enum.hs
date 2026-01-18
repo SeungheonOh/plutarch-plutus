@@ -12,7 +12,7 @@ import Plutarch.Internal.Fix (pfix)
 import Plutarch.Internal.Numeric (PPositive, pone, (#+))
 import Plutarch.Internal.Ord (POrd)
 import Plutarch.Internal.PLam (plam)
-import Plutarch.Internal.Subtype (pto)
+import Plutarch.Internal.Subtype (pupcast)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -71,7 +71,7 @@ instance PCountable PInteger where
   {-# INLINEABLE psuccessor #-}
   psuccessor = phoistAcyclic $ plam (+ 1)
   {-# INLINEABLE psuccessorN #-}
-  psuccessorN = phoistAcyclic $ plam $ \p i -> pto p + i
+  psuccessorN = phoistAcyclic $ plam $ \p i -> pupcast p + i
 
 -- | @since 1.10.0
 instance PCountable PPositive where
@@ -129,4 +129,4 @@ instance PEnumerable PInteger where
   {-# INLINEABLE ppredecessor #-}
   ppredecessor = phoistAcyclic $ plam (- 1)
   {-# INLINEABLE ppredecessorN #-}
-  ppredecessorN = phoistAcyclic $ plam $ \p i -> i - pto p
+  ppredecessorN = phoistAcyclic $ plam $ \p i -> i - pupcast p

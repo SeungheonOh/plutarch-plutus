@@ -358,8 +358,8 @@ instance IsTest DefaultBetter where
             pzero
             ( pif
                 (e' #<= pzero)
-                (pnegate # pscalePositive b (punsafeDowncast (pnegate # e')))
-                (pscalePositive b (punsafeDowncast e'))
+                (pnegate # pscalePositive b (punsafeDowncast (punsafeDowncast (pnegate # e'))))
+                (pscalePositive b (punsafeDowncast (punsafeDowncast e')))
             )
       ppowNaturalDefault ::
         forall (a :: S -> Type) (s :: S).

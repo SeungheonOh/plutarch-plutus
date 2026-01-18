@@ -60,7 +60,7 @@ import Plutarch.Internal.Other (Flip)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (PlutusType, pcon, pmatch)
 import Plutarch.Internal.Show (PShow, pshow, pshow')
-import Plutarch.Internal.Subtype (pto, punsafeDowncast)
+import Plutarch.Internal.Subtype (pto, punsafeDowncast, pupcast)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -163,13 +163,13 @@ instance PAdditiveSemigroup PRational where
           PRational yn yd' <- tcont $ pmatch y
           xd <- tcont $ plet xd'
           yd <- tcont $ plet yd'
-          pure $ preduce' # (xn * pto yd + yn * pto xd) # pto (xd #* yd)
+          pure $ preduce' # (xn * pupcast yd + yn * pupcast xd) # pupcast (xd #* yd)
       )
       # x'
       # y'
   {-# INLINEABLE pscalePositive #-}
   pscalePositive x p = pmatch x $ \(PRational xn xd) ->
-    preduce' # (xn #* pto p) # pto xd
+    preduce' # (xn #* pupcast p) # pupcast xd
 
 -- | @since 1.10.0
 instance PAdditiveMonoid PRational where
@@ -177,7 +177,7 @@ instance PAdditiveMonoid PRational where
   pzero = pcon . PRational pzero $ pone
   {-# INLINEABLE pscaleNatural #-}
   pscaleNatural x n = pmatch x $ \(PRational xn xd) ->
-    preduce' # (xn #* pto n) # pto xd
+    preduce' # (xn #* pto n) # pupcast xd
 
 -- | @since 1.10.0
 instance PAdditiveGroup PRational where
@@ -195,13 +195,13 @@ instance PAdditiveGroup PRational where
           PRational yn yd' <- tcont $ pmatch y
           xd <- tcont $ plet xd'
           yd <- tcont $ plet yd'
-          pure $ preduce' # (xn * pto yd - yn * pto xd) # pto (xd #* yd)
+          pure $ preduce' # (xn * pupcast yd - yn * pupcast xd) # pupcast (xd #* yd)
       )
       # x'
       # y'
   {-# INLINEABLE pscaleInteger #-}
   pscaleInteger x e = pmatch x $ \(PRational xn xd) ->
-    preduce' # (xn #* e) # pto xd
+    preduce' # (xn #* e) # pupcast xd
 
 -- | @since 1.10.0
 instance PMultiplicativeSemigroup PRational where
@@ -211,7 +211,7 @@ instance PMultiplicativeSemigroup PRational where
       ( plam $ \x y -> unTermCont $ do
           PRational xn xd <- tcont $ pmatch x
           PRational yn yd <- tcont $ pmatch y
-          pure $ preduce' # (xn * yn) # pto (xd #* yd)
+          pure $ preduce' # (xn * yn) # pupcast (xd #* yd)
       )
       # x'
       # y'
@@ -256,11 +256,11 @@ instance Fractional (Term s PRational) where
       inner :: forall (s :: S). Term s (PRational :--> PRational :--> PRational)
       inner = phoistAcyclic $ plam $ \x y -> pmatch x $ \(PRational xn xd) ->
         pmatch y $ \(PRational yn yd) ->
-          plet (pto xd * yn) $ \denm ->
+          plet (pupcast xd * yn) $ \denm ->
             pif
               (denm #== 0)
               (ptraceInfoError "Cannot divide by zero")
-              (preduce' # (xn * pto yd) # denm)
+              (preduce' # (xn * pupcast yd) # denm)
   {-# INLINEABLE recip #-}
   recip x = inner # x
     where
@@ -268,9 +268,9 @@ instance Fractional (Term s PRational) where
       inner = phoistAcyclic $ plam $ \x -> pmatch x $ \(PRational xn xd) ->
         pcond
           [ (xn #== 0, ptraceInfoError "attempted to construct the reciprocal of zero")
-          , (xn #<= 0, pcon $ PRational (pnegate #$ pto xd) (punsafeCoerce $ pnegate # xn))
+          , (xn #<= 0, pcon $ PRational (pnegate #$ pupcast xd) (punsafeCoerce $ pnegate # xn))
           ]
-          (pcon $ PRational (pto xd) (punsafeCoerce xn))
+          (pcon $ PRational (pupcast xd) (punsafeCoerce xn))
   {-# INLINEABLE fromRational #-}
   fromRational = pconstant . PlutusTx.fromGHC
 
@@ -280,7 +280,7 @@ instance PShow PRational where
     where
       pshowRat = phoistAcyclic $
         plam $ \n -> pmatch n $ \(PRational x y) ->
-          pshow x <> "/" <> pshow (pto y)
+          pshow x <> "/" <> pshow (pupcast @PInteger y)
 
 -- | NOTE: This instance produces a verified 'PPositive' as the excess output.
 instance PTryFrom PData (PAsData PRational) where
@@ -295,7 +295,7 @@ instance PTryFrom PData (PAsData PRational) where
 
 preduce :: Term s (PRational :--> PRational)
 preduce = phoistAcyclic $ plam $ \x ->
-  pmatch x $ \(PRational n d) -> preduce' # n # pto d
+  pmatch x $ \(PRational n d) -> preduce' # n # pupcast d
 
 pgcd :: Term s (PInteger :--> PInteger :--> PInteger)
 pgcd = phoistAcyclic $
@@ -333,13 +333,13 @@ pround = phoistAcyclic $
     PRational a' b' <- tcont $ pmatch x
     a <- tcont $ plet a'
     b <- tcont $ plet b'
-    base <- tcont . plet $ pdiv # a # pto b
-    rem <- tcont . plet $ pmod # a # pto b
+    base <- tcont . plet $ pdiv # a # pupcast b
+    rem <- tcont . plet $ pmod # a # pupcast b
     let result =
           pcond
-            [ (pmod # pto b # 2 #== 1, pif (pdiv # pto b # 2 #< rem) 1 0)
-            , (pdiv # pto b # 2 #== rem, pmod # base # 2)
-            , (rem #< pdiv # pto b # 2, 0)
+            [ (pmod # pupcast b # 2 #== 1, pif (pdiv # pupcast b # 2 #< rem) 1 0)
+            , (pdiv # pupcast b # 2 #== rem, pmod # base # 2)
+            , (rem #< pdiv # pupcast b # 2, 0)
             ]
             1
     pure $ base + result
@@ -348,7 +348,7 @@ ptruncate :: Term s (PRational :--> PInteger)
 ptruncate = phoistAcyclic $
   plam $ \x ->
     pmatch x $ \(PRational a b) ->
-      pquot # a # pto b
+      pquot # a # pupcast b
 
 pproperFraction :: Term s (PRational :--> PPair PInteger PRational)
 pproperFraction = phoistAcyclic $
@@ -364,7 +364,7 @@ cmpHelper ::
 cmpHelper = phoistAcyclic $ plam $ \f l r ->
   pmatch l $ \(PRational ln ld) ->
     pmatch r $ \(PRational rn rd) ->
-      f # (pto rd * ln) # (rn * pto ld)
+      f # (pupcast rd * ln) # (rn * pupcast ld)
 
 -- Assumes d is not zero
 preduce' :: forall (s :: S). Term s (PInteger :--> PInteger :--> PRational)
@@ -373,5 +373,5 @@ preduce' = phoistAcyclic $ plam $ \n d' ->
     plet (pgcd # n # d) $ \r ->
       pif
         (d #<= 0)
-        (pcon $ PRational (pnegate # (pdiv # n # r)) $ punsafeDowncast (pnegate # (pdiv # d # r)))
-        (pcon $ PRational (pdiv # n # r) $ punsafeDowncast (pdiv # d # r))
+        (pcon $ PRational (pnegate # (pdiv # n # r)) $ punsafeDowncast (punsafeDowncast (pnegate # (pdiv # d # r))))
+        (pcon $ PRational (pdiv # n # r) $ punsafeDowncast (punsafeDowncast (pdiv # d # r)))

@@ -434,4 +434,4 @@ liftCompareOp f x y = phoistAcyclic (plam go) # x # y
     go l r = unTermCont $ do
       PRationalData ln ld <- pmatchC l
       PRationalData rn rd <- pmatchC r
-      pure $ f (pfromData ln * pto (pfromData rd)) (pfromData rn * pto (pfromData ld))
+      pure $ f (pfromData ln * pupcast (pfromData rd)) (pfromData rn * pupcast (pfromData ld))

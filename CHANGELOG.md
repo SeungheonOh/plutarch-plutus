@@ -26,6 +26,9 @@
   `Plutarch.Prelude`. 
 * `pfoldlArray` renamed to `pfoldArray`.
 * `PShow`'s `pshow'` method is now available from the Prelude.
+* `PInner PPositive` is now `PNatural`, which allows the use of `pupcast` for
+  easier conversions 'upward'.
+* `pzero` and `pone` now have defaults based on `PInner`, similar to `#+`.
 
 ## Removed
 
