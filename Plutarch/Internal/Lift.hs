@@ -79,10 +79,10 @@ import Plutarch.Internal.Term (
   Term,
   TracingMode (DoTracing),
   compile,
+  punsafeCoerce,
   punsafeConstantInternal,
  )
 import Plutarch.Script (Script (Script))
-import Plutarch.Unsafe (punsafeCoerce)
 import PlutusCore qualified as PLC
 import PlutusCore.Builtin (BuiltinError, readKnownConstant)
 import PlutusCore.Crypto.BLS12_381.G1 qualified as BLS12_381.G1

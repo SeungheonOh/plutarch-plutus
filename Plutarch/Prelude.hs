@@ -195,7 +195,6 @@ module Plutarch.Prelude (
   ppositiveToNatural,
 
   -- * Other
-  pto,
   pinl,
   plam,
   PForall (..),
@@ -224,6 +223,7 @@ module Plutarch.Prelude (
   PTryFrom (..),
   ptryFrom,
   pupcast,
+  pto,
 
   -- * Maybe
   PMaybe (..),
@@ -301,7 +301,6 @@ import Plutarch.Internal.ListLike
 import Plutarch.Internal.Newtype
 import Plutarch.Internal.Numeric
 import Plutarch.Internal.Ord
-import Plutarch.Internal.Other
 import Plutarch.Internal.PLam
 import Plutarch.Internal.Parse
 import Plutarch.Internal.PlutusType
@@ -309,6 +308,7 @@ import Plutarch.Internal.Quantification
 import Plutarch.Internal.ScottEncoding
 import Plutarch.Internal.Semigroup
 import Plutarch.Internal.Show
+import Plutarch.Internal.Subtype
 import Plutarch.Internal.Term
 import Plutarch.Internal.TryFrom
 import Plutarch.List

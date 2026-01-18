@@ -56,6 +56,7 @@ import Plutarch.Internal.Term (
   perror,
   phoistAcyclic,
   plet,
+  punsafeCoerce,
   (#),
   (:-->),
  )
@@ -66,7 +67,6 @@ import Plutarch.Repr.Data (
  )
 import Plutarch.Repr.Internal (UnTermRec, UnTermStruct)
 import Plutarch.Repr.Tag (DeriveAsTag)
-import Plutarch.Unsafe (punsafeCoerce)
 
 {- | Describes a @Data@ encoded Plutarch type that requires some additional
 validation to ensure its structure is indeed what we expect. This is

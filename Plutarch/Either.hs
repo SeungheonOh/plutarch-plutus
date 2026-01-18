@@ -69,7 +69,6 @@ import Plutarch.Internal.Lift (
  )
 import Plutarch.Internal.ListLike (pcons, phead, pnil)
 import Plutarch.Internal.Ord (POrd (pmax, pmin, (#<), (#<=)))
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (
   PlutusType (PInner, pcon', pmatch'),
@@ -77,11 +76,13 @@ import Plutarch.Internal.PlutusType (
   pmatch,
  )
 import Plutarch.Internal.Show (PShow)
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   S,
   Term,
   phoistAcyclic,
   plet,
+  punsafeCoerce,
   (#),
   (#$),
   (:-->),
@@ -89,7 +90,6 @@ import Plutarch.Internal.Term (
 import Plutarch.Internal.TryFrom (PTryFrom)
 import Plutarch.Repr.SOP (DeriveAsSOPStruct (DeriveAsSOPStruct))
 import Plutarch.Trace (ptraceInfoError)
-import Plutarch.Unsafe (punsafeCoerce)
 import PlutusLedgerApi.V3 qualified as Plutus
 
 {- | SOP-encoded 'Either'.
