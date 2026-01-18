@@ -51,7 +51,6 @@ import Plutarch.Internal.Lift (
   punsafeCoercePLifted,
  )
 import Plutarch.Internal.ListLike (phead, ptail)
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (
   PInner,
@@ -61,6 +60,7 @@ import Plutarch.Internal.PlutusType (
   pmatch,
   pmatch',
  )
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   InternalConfig (..),
   S,

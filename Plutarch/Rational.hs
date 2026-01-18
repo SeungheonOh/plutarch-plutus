@@ -56,16 +56,18 @@ import Plutarch.Internal.Numeric (
 import Plutarch.Internal.Ord (
   POrd ((#<), (#<=)),
  )
-import Plutarch.Internal.Other (Flip, pto)
+import Plutarch.Internal.Other (Flip)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (PlutusType, pcon, pmatch)
 import Plutarch.Internal.Show (PShow, pshow, pshow')
+import Plutarch.Internal.Subtype (pto, punsafeDowncast)
 import Plutarch.Internal.Term (
   S,
   Term,
   phoistAcyclic,
   plet,
   punsafeBuiltin,
+  punsafeCoerce,
   (#),
   (#$),
   (:-->),
@@ -79,7 +81,6 @@ import Plutarch.Internal.TryFrom (PTryFrom (PTryFromExcess, ptryFrom'), ptryFrom
 import Plutarch.Pair (PPair (PPair))
 import Plutarch.Repr.SOP (DeriveAsSOPRec (DeriveAsSOPRec))
 import Plutarch.Trace (ptraceInfoError)
-import Plutarch.Unsafe (punsafeCoerce, punsafeDowncast)
 import PlutusCore qualified as PLC
 import PlutusTx.Ratio qualified as PlutusTx
 

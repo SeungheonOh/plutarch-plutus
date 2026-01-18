@@ -87,7 +87,7 @@ import Plutarch.Internal.Lift (pconstant)
 import Plutarch.Internal.ListLike (PListLike (pnil), pcons, pdrop, phead, ptail, ptryIndex)
 import Plutarch.Internal.Newtype (PlutusTypeNewtype)
 import Plutarch.Internal.Ord (POrd (pmax, pmin, (#<), (#<=)))
-import Plutarch.Internal.Other (Flip, pto)
+import Plutarch.Internal.Other (Flip)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (
   DerivePlutusType (DPTStrat),
@@ -101,6 +101,7 @@ import Plutarch.Internal.PlutusType (
   pmatch,
  )
 import Plutarch.Internal.Show (PShow (pshow'))
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   RawTerm,
   Term,
@@ -109,6 +110,7 @@ import Plutarch.Internal.Term (
   pforce,
   phoistAcyclic,
   plet,
+  punsafeCoerce,
   (#),
   (#$),
   (:-->),
@@ -132,7 +134,6 @@ import Plutarch.Internal.TryFrom (
  )
 import Plutarch.Reducible (NoReduce, Reduce)
 import Plutarch.Trace (ptraceInfoError)
-import Plutarch.Unsafe (punsafeCoerce)
 
 {- | A "record" of `exists a. PAsData a`. The underlying representation is
  `PBuiltinList PData`.

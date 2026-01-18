@@ -29,7 +29,6 @@ import Plutarch.Internal.Lift (
  )
 import Plutarch.Internal.Numeric (pzero)
 import Plutarch.Internal.Ord (POrd ((#<)))
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (
   DeriveNewtypePlutusType (DeriveNewtypePlutusType),
@@ -37,6 +36,7 @@ import Plutarch.Internal.PlutusType (
   pcon,
  )
 import Plutarch.Internal.Semigroup (PMonoid, PSemigroup)
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   S,
   Term,

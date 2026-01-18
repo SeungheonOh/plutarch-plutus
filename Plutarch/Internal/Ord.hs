@@ -27,8 +27,8 @@ import Plutarch.Builtin.Integer (
 import Plutarch.Builtin.Unit (PUnit)
 import Plutarch.Internal.Eq (PEq)
 import Plutarch.Internal.Lift (pconstant)
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PlutusType (PInner)
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   S,
   Term,

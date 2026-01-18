@@ -60,12 +60,12 @@ import Plutarch.Internal.Numeric (
   (#+),
  )
 import Plutarch.Internal.Ord (POrd)
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PlutusType (
   DeriveNewtypePlutusType (DeriveNewtypePlutusType),
   PlutusType (PInner),
   pcon,
  )
+import Plutarch.Internal.Subtype (pto, punsafeDowncast)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -75,7 +75,6 @@ import Plutarch.Internal.Term (
   (#),
   (#$),
  )
-import Plutarch.Unsafe (punsafeDowncast)
 import PlutusCore qualified as PLC
 import Universe (Includes)
 
