@@ -2,6 +2,8 @@
 
 # UNRELEASED
 
+# 1.13.0 -- 04-03-2026
+
 ## Added
 
 * `PValidateData` instance for `PPositive`.
@@ -10,6 +12,7 @@
 * `punsafeCase`, to give access to the UPLC `Case` construct more conveniently
 * `prfoldArray`, which folds a pull array from highest-to-lowest indexes
 * `PShow` instance for `PNatural`
+* `punsafeCase` is now exported from `Plutarch.Unsafe`.
 
 ## Changed
 

@@ -120,7 +120,7 @@ ptailBuiltin = phoistAcyclic $ pforce $ punsafeBuiltin PLC.TailList
 'PBuiltinList', as this will be faster. This is also faster than a 'pmatch',
 as the 'PNil' case is omitted.
 
-@since wip
+@since 1.13.0
 -}
 pheadTailBuiltin ::
   forall (a :: S -> Type) (b :: S -> Type) (s :: S).

@@ -112,7 +112,7 @@ class PShow t where
   If the argument is True, wrap the output in `(..)` if it
   represents multiple parameters.
 
-  @since wip
+  @since 1.13.0
   -}
   pshow' :: Bool -> Term s t -> Term s PString
   default pshow' :: (PGeneric t, PlutusType t, All2 PShow (PCode t)) => Bool -> Term s t -> Term s PString
@@ -371,5 +371,5 @@ instance PShow PPositive
 -- | @since 1.10.0
 instance PShow a => PShow (PMaybe a)
 
--- | @since wip
+-- | @since 1.13.0
 instance PShow PNatural

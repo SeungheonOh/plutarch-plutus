@@ -86,7 +86,7 @@ a lambda onchain.
 newtype PPullArray (a :: S -> Type) (s :: S)
   = PPullArray (forall (r :: S -> Type). Term s ((PNatural :--> (PInteger :--> a) :--> r) :--> r))
 
--- | @since wip
+-- | @since 1.13.0
 instance PlutusType (PPullArray a) where
   type PInner (PPullArray a) = PPullArray a
   pcon' (PPullArray t) = punsafeCoerce t
@@ -306,7 +306,7 @@ Assuming \(\Theta(k)\) cost in space, and \(\Theta(\ell)\) cost in time, per
 application of the \'combining function\', \(\Theta(kn)\) space complexity
 and \(\Theta(k\ell)\) time complexity.
 
-@since wip
+@since 1.13.0
 -}
 pfoldArray ::
   forall (a :: S -> Type) (b :: S -> Type) (s :: S).
@@ -328,7 +328,7 @@ pfoldArray f x arr = pmatch arr $ \(PPullArray k) ->
 
 {- | As 'pfoldArray', but from the /highest/ index working /downward/.
 
-@since wip
+@since 1.13.0
 -}
 prfoldArray ::
   forall (a :: S -> Type) (b :: S -> Type) (s :: S).

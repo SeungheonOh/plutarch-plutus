@@ -143,7 +143,7 @@ instance PValidateData PInteger where
 
 {- | Checks that we have a positive @I@.
 
-@since wip
+@since 1.13.0
 -}
 instance PValidateData PPositive where
   pwithValidated opq x =
@@ -219,7 +219,7 @@ instance {-# OVERLAPPABLE #-} PValidateData a => PValidateData (PBuiltinList a) 
 validates as per @a@ and @b@. Takes precedence over the overlapping
 @PValidateData (PBuiltinList a)@ instance.
 
-@since wip
+@since 1.13.0
 -}
 instance
   {-# OVERLAPPING #-}

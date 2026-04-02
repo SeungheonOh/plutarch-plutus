@@ -21,7 +21,7 @@ correct types, or that the number of handlers is appropriate for the type
 being handled. Crashes or misbehaviour can and will occur if you get this
 wrong!
 
-@since wip
+@since 1.13.0
 -}
 punsafeCase ::
   forall (a :: S -> Type) (b :: S -> Type) (s :: S).
