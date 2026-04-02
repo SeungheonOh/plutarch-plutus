@@ -16,7 +16,10 @@
 
 ## Changed
 
-* Bump `plutus-core` to 1.54.0.0
+* Bump `plutus-core` to 1.60.0.0
+* Add `KnownBuiltinType` constraint for various `PLiftable` instances as per the
+  new requirements from `plutus-core`. This led to some redundant `Includes`
+  constraints being removed as well.
 * `pif'` is now deprecated, as builtin casing on `Bool` outperforms it
 * `pfstBuiltin` and `psndBuiltin` are now deprecated, as pattern matching on
   `PBuiltinPair` outperforms it

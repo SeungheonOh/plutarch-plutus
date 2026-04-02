@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
+{-# LANGUAGE NoPartialTypeSignatures #-}
 -- Because of the weird way the PlutusType derivation mechanisms work, we lose
 -- the PlutusType constraint. Kind of annoying, but we can't convince GHC
 -- otherwise.
@@ -84,7 +85,11 @@ import Plutarch.Internal.Term (
  )
 import Plutarch.Script (Script (Script))
 import PlutusCore qualified as PLC
-import PlutusCore.Builtin (BuiltinError, readKnownConstant)
+import PlutusCore.Builtin (
+  BuiltinError,
+  KnownBuiltinType,
+  readKnownConstant,
+ )
 import PlutusCore.Crypto.BLS12_381.G1 qualified as BLS12_381.G1
 import PlutusCore.Crypto.BLS12_381.G2 qualified as BLS12_381.G2
 import PlutusCore.Crypto.BLS12_381.Pairing qualified as BLS12_381.Pairing
@@ -185,11 +190,11 @@ class PlutusType a => PLiftable (a :: S -> Type) where
 
 {- | Valid definition of 'reprToPlut' if @PlutusRepr a@ is in the Plutus universe.
 
-@since 1.10.0
+@since 1.13.0
 -}
 reprToPlutUni ::
   forall (a :: S -> Type) (s :: S).
-  (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) =>
+  PLC.DefaultUni `Includes` PlutusRepr a =>
   PlutusRepr a ->
   PLifted s a
 reprToPlutUni = unsafeHaskToUni
@@ -211,11 +216,11 @@ unsafeHaskToUni x =
 {- | Valid definition of 'plutToRepr' if @PlutusRepr a@ is in the Plutus
 universe.
 
-@since 1.10.0
+@since 1.13.0
 -}
 plutToReprUni ::
   forall (a :: S -> Type).
-  (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) =>
+  KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a) =>
   (forall (s :: S). PLifted s a) ->
   Either LiftError (PlutusRepr a)
 plutToReprUni t = case compile (Tracing LogInfo DoTracing) $ unPLifted t of
@@ -287,10 +292,11 @@ newtype DeriveBuiltinPLiftable (a :: S -> Type) (h :: Type) (s :: S)
     )
     via (DeriveFakePlutusType (DeriveBuiltinPLiftable a h))
 
--- | @since 1.10.0
+-- | @since 1.13.0
 instance
   ( PlutusType a
   , PLC.DefaultUni `Includes` h
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) h
   ) =>
   PLiftable (DeriveBuiltinPLiftable a h)
   where
@@ -356,11 +362,12 @@ newtype DeriveNewtypePLiftable (wrapper :: S -> Type) (h :: Type) (s :: S)
     )
     via (DeriveFakePlutusType (DeriveNewtypePLiftable wrapper h))
 
--- | @since 1.10.0
+-- | @since 1.13.0
 instance
   ( PLiftable (PInner wrapper)
   , Coercible h (AsHaskell (PInner wrapper))
   , PLC.DefaultUni `Includes` PlutusRepr (PInner wrapper)
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr (PInner wrapper))
   ) =>
   PLiftable (DeriveNewtypePLiftable wrapper h)
   where
@@ -464,12 +471,14 @@ instance
   {-# INLINEABLE plutToRepr #-}
   plutToRepr = plutToReprUni
 
--- | @since 1.10.0
+-- | @since 1.13.0
 instance
   ( PLiftable a
   , PLC.DefaultUni `Includes` PlutusRepr a
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)
   , PLiftable b
   , PLC.DefaultUni `Includes` PlutusRepr b
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr b)
   ) =>
   PLiftable (PBuiltinPair a b)
   where
@@ -484,9 +493,12 @@ instance
   {-# INLINEABLE plutToRepr #-}
   plutToRepr = plutToReprUni
 
--- | @since 1.10.0
+-- | @since 1.13.0
 instance
-  (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) =>
+  ( PLiftable a
+  , PLC.DefaultUni `Includes` PlutusRepr a
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)
+  ) =>
   PLiftable (PBuiltinList a)
   where
   type AsHaskell (PBuiltinList a) = [AsHaskell a]
@@ -568,8 +580,14 @@ deriving via
   instance
     PLiftable PBuiltinBLS12_381_MlResult
 
--- | @since 1.11.0
-instance (PLC.Contains UPLC.DefaultUni (PlutusRepr a), PLiftable a) => PLiftable (PArray a) where
+-- | @since 1.13.0
+instance
+  ( PLC.Contains UPLC.DefaultUni (PlutusRepr a)
+  , PLiftable a
+  , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)
+  ) =>
+  PLiftable (PArray a)
+  where
   type AsHaskell (PArray a) = StrictVector.Vector (AsHaskell a)
   type PlutusRepr (PArray a) = StrictVector.Vector (PlutusRepr a)
   {-# INLINEABLE haskToRepr #-}
