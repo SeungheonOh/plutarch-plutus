@@ -77,7 +77,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 pmaxDefaultBetter ::
   forall (a :: S -> Type).
@@ -97,7 +97,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 pminDefaultBetter ::
   forall (a :: S -> Type).
@@ -117,7 +117,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 psuccessorNBetter ::
   forall (a :: S -> Type).
@@ -137,7 +137,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 ppredecessorNBetter ::
   forall (a :: S -> Type).
@@ -157,7 +157,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 pscalePositiveBetter ::
   forall (a :: S -> Type).
@@ -177,7 +177,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 pscaleNaturalBetter ::
   forall (a :: S -> Type).
@@ -197,7 +197,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 pscaleIntegerBetter ::
   forall (a :: S -> Type).
@@ -217,7 +217,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 ppowPositiveBetter ::
   forall (a :: S -> Type).
@@ -237,7 +237,7 @@ what metric (out of exunits, memory use or script size) was worse, and by how
 much; otherwise, the test passes, indicating how much better (if at all) the
 defined implementation is compared to the default.
 
-@since wip
+@since 1.0.3
 -}
 ppowNaturalBetter ::
   forall (a :: S -> Type).

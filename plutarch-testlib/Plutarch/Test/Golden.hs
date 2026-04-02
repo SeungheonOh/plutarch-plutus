@@ -127,7 +127,7 @@ goldenEvalFail = GoldenTestTreeEvalFail
 {- | As 'goldenEval', but allows setting the 'Config' to use for compiling the
 script.
 
-@since wip
+@since 1.0.3
 -}
 goldenEvalWithConfig :: forall (a :: S -> Type). Config -> TestName -> (forall (s :: S). Term s a) -> GoldenTestTree
 goldenEvalWithConfig = GoldenTestTreeEval
