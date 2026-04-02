@@ -31,7 +31,7 @@ newtype PAssetClass (s :: S) = PAssetClass (Term s (PBuiltinPair (PAsData PCurre
     )
     via (DeriveNewtypePlutusType PAssetClass)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via ( DeriveNewtypePValidateData

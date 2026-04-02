@@ -115,7 +115,7 @@ data PTxInInfo (s :: S) = PTxInInfo
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PTxInInfo)
@@ -161,7 +161,7 @@ data PTxInfo (s :: S) = PTxInfo
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PTxInfo)
@@ -197,7 +197,7 @@ data PScriptContext (s :: S) = PScriptContext
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PScriptContext)

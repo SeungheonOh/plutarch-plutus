@@ -44,7 +44,7 @@ data POutputDatum (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct POutputDatum)
@@ -82,7 +82,7 @@ data PTxOut (s :: S) = PTxOut
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PTxOut)

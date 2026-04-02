@@ -81,7 +81,7 @@ newtype PDatum (s :: S) = PDatum (Term s PData)
       PEq
     , -- | @since 2.0.0
       PShow
-    , -- | @since wip
+    , -- | @since 3.6.0
       SOP.Generic
     )
   deriving
@@ -90,7 +90,7 @@ newtype PDatum (s :: S) = PDatum (Term s PData)
     )
     via (DeriveNewtypePlutusType PDatum)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via (DeriveNewtypePValidateData PDatum PData)
@@ -131,7 +131,7 @@ newtype PDatumHash (s :: S) = PDatumHash (Term s PByteString)
 -- | @since 3.4.0
 instance PTryFrom PData (PAsData PDatumHash)
 
--- | @since wip
+-- | @since 3.6.0
 instance PValidateData PDatumHash where
   pwithValidated opq x =
     plet (plengthBS #$ pfromData $ pparseData @PByteString opq) $ \bsSize ->
@@ -163,7 +163,7 @@ newtype PRedeemer (s :: S) = PRedeemer (Term s PData)
       Generic
     )
   deriving anyclass
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       SOP.Generic
     , -- | @since 2.0.0
       PIsData
@@ -178,7 +178,7 @@ newtype PRedeemer (s :: S) = PRedeemer (Term s PData)
     )
     via (DeriveNewtypePlutusType PRedeemer)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via (DeriveNewtypePValidateData PRedeemer PData)
@@ -219,7 +219,7 @@ newtype PRedeemerHash (s :: S) = PRedeemerHash (Term s PByteString)
 -- | @since 3.4.0
 instance PTryFrom PData (PAsData PRedeemerHash)
 
--- | @since wip
+-- | @since 3.6.0
 instance PValidateData PRedeemerHash where
   pwithValidated opq x =
     plet (plengthBS #$ pfromData $ pparseData @PByteString opq) $ \bsSize ->

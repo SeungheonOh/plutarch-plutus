@@ -55,7 +55,7 @@ instance PTryFrom PData (PAsData PTokenName)
 {- | Checks that we have a 'PTokenName' of valid length. The underlying
 'PByteString' must not exceed 32 bytes.
 
-@since wip
+@since 3.6.0
 -}
 instance PValidateData PTokenName where
   pwithValidated opq x =

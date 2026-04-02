@@ -36,7 +36,7 @@ data PScriptPurpose (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PScriptPurpose)

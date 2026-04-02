@@ -108,7 +108,7 @@ newtype PRawValue (s :: S)
     )
     via (DeriveNewtypePlutusType PRawValue)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via ( DeriveNewtypePValidateData
@@ -202,7 +202,7 @@ instance PTryFrom PData (PAsData PSortedValue) where
 {- | Checks that we have a valid 'PSortedValue'. The underlying map must be
 sorted and contain no empty token maps.
 
-@since wip
+@since 3.6.0
 -}
 instance PValidateData PSortedValue where
   pwithValidated opq x =
@@ -287,7 +287,7 @@ instance PTryFrom PData (PAsData PLedgerValue) where
 {- | Checks that we have a valid 'PLedgerValue'. The underlying map must be
 sorted, contain no empty token maps, and include an ADA entry.
 
-@since wip
+@since 3.6.0
 -}
 instance PValidateData PLedgerValue where
   pwithValidated opq x =
@@ -467,7 +467,7 @@ passertSorted = phoistAcyclic $
 The conversion succeeds only if the input Value is already sorted and does not
 contain empty token maps. Otherwise, the function fails with an error.
 
-@since wip
+@since 3.6.0
 -}
 ppromoteToSortedValue :: forall (s :: S). Term s (PRawValue :--> PSortedValue)
 ppromoteToSortedValue = passertSorted
@@ -613,7 +613,7 @@ punionWithData = phoistAcyclic $
 
 {- | Get the quantity of the given currency in the 'PSortedValue'.
 
-@since wip
+@since 3.6.0
 -}
 pvalueOf :: forall (s :: S). Term s (PSortedValue :--> PCurrencySymbol :--> PTokenName :--> PInteger)
 pvalueOf = phoistAcyclic $
@@ -666,7 +666,7 @@ pisAdaOnlyValue = phoistAcyclic $
 
 {- | Check if the given Value contains zero token quantities.
 
-@since wip
+@since 3.6.0
 -}
 phasZeroTokenQuantities :: forall (s :: S). Term s (PRawValue :--> PBool)
 phasZeroTokenQuantities =
@@ -677,7 +677,7 @@ phasZeroTokenQuantities =
 
 {- | Check if the given 'PSortedValue' contains an ADA entry (can be zero).
 
-@since wip
+@since 3.6.0
 -}
 phasAdaEntry :: forall (s :: S). Term s (PSortedValue :--> PBool)
 phasAdaEntry =
@@ -691,7 +691,7 @@ phasAdaEntry =
 
 {- | Check if the given 'PSortedValue' has a zero ADA entry.
 
-@since wip
+@since 3.6.0
 -}
 phasZeroAdaEntry :: forall (s :: S). Term s (PSortedValue :--> PBool)
 phasZeroAdaEntry =

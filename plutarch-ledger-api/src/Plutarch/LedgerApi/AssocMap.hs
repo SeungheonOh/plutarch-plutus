@@ -148,7 +148,7 @@ newtype PAssocMap (k :: S -> Type) (v :: S -> Type) (s :: S)
     )
     via (DeriveNewtypePlutusType (PAssocMap k v))
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via ( DeriveNewtypePValidateData
@@ -156,7 +156,7 @@ newtype PAssocMap (k :: S -> Type) (v :: S -> Type) (s :: S)
             (PBuiltinList (PBuiltinPair (PAsData k) (PAsData v)))
         )
 
--- | @since wip
+-- | @since 3.6.0
 instance PIsData (PAssocMap k v) where
   pfromDataImpl x = punsafeCoerce $ pasMap # pforgetData x
   pdataImpl x = punsafeBuiltin PLC.MapData # x
@@ -183,7 +183,7 @@ newtype PUnsortedMap (k :: S -> Type) (v :: S -> Type) (s :: S)
     )
     via (DeriveNewtypePlutusType (PUnsortedMap k v))
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via (DeriveNewtypePValidateData (PUnsortedMap k v) (PAssocMap k v))
@@ -294,7 +294,7 @@ instance
 {- | Checks that we have a valid 'PSortedMap' with keys sorted in ascending
 order.
 
-@since wip
+@since 3.6.0
 -}
 instance (PValidateData k, PValidateData v, POrd k, PIsData k) => PValidateData (PSortedMap k v) where
   pwithValidated opq x =
@@ -440,7 +440,7 @@ passertSorted =
 that the keys in the input map are in strictly ascending order and fails with
 an error if they are not. Duplicate keys are not allowed.
 
-@since wip
+@since 3.6.0
 -}
 ppromoteToSortedMap ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -452,7 +452,7 @@ ppromoteToSortedMap = passertSorted
 
 {- | Coerce 'PUnsortedMap' to 'PSortedMap'. Unsafe.
 
-@since wip
+@since 3.6.0
 -}
 punsafeCoerceToSortedMap ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -873,7 +873,7 @@ pany = phoistAcyclic $
 {- | Project all key-value pairs into a 'Monoid', then combine. Keys and values
 will be presented in key order.
 
-@since wip
+@since 3.6.0
 -}
 pfoldMapWithKey ::
   forall (m :: S -> Type) (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -889,7 +889,7 @@ pfoldMapWithKey = phoistAcyclic $
 {- | Left-associative fold with keys. Keys and values will be
 presented in key order.
 
-@since wip
+@since 3.6.0
 -}
 pfoldlWithKey ::
   forall (a :: S -> Type) (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -1177,7 +1177,7 @@ pnull = plam $ \m -> PPrelude.pnull # pto (pto m)
 
 {- | Look up the given key in a 'PSortedMap'.
 
-@since wip
+@since 3.6.0
 -}
 plookup ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -1193,7 +1193,7 @@ plookup = phoistAcyclic $
 
 {- | As 'plookup', except over Data representation.
 
-@since wip
+@since 3.6.0
 -}
 plookupData ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -1204,7 +1204,7 @@ plookupData =
 {- | Look up the given key data in a 'PSortedMap', applying the given function
 to the found key-value pair.
 
-@since wip
+@since 3.6.0
 -}
 plookupDataWith ::
   forall (k :: S -> Type) (v :: S -> Type) (x :: S -> Type) (s :: S).
@@ -1231,7 +1231,7 @@ plookupDataWith = phoistAcyclic $
 {- | Look up the given key in a 'PSortedMap', returning the default value
 if the key is absent.
 
-@since wip
+@since 3.6.0
 -}
 pfindWithDefault ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).
@@ -1247,7 +1247,7 @@ pfindWithDefault =
 {- | Look up the given key in a 'PSortedMap'; return the default if the key is
 absent or apply the argument function to the value data if present.
 
-@since wip
+@since 3.6.0
 -}
 pfoldAt ::
   forall (k :: S -> Type) (v :: S -> Type) (r :: S -> Type) (s :: S).
@@ -1260,7 +1260,7 @@ pfoldAt = phoistAcyclic $
 {- | Look up the given key data in a 'PSortedMap'; return the default if the key
 is absent or apply the argument function to the value data if present.
 
-@since wip
+@since 3.6.0
 -}
 pfoldAtData ::
   forall (k :: S -> Type) (v :: S -> Type) (r :: S -> Type) (s :: S).
@@ -1280,7 +1280,7 @@ pfoldAtData = phoistAcyclic $
 
 {- | As 'plookup', but errors when the key is missing.
 
-@since wip
+@since 3.6.0
 -}
 ptryLookup ::
   forall (k :: S -> Type) (v :: S -> Type) (s :: S).

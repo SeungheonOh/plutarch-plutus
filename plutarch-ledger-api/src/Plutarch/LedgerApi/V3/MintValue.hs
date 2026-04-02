@@ -94,7 +94,7 @@ instance PTryFrom PData (PAsData PMintValue) where
 sorted, must not include an ADA entry, and must not contain any empty token maps
 or tokens with zero quantities.
 
-@since wip
+@since 3.6.0
 -}
 instance PValidateData PMintValue where
   pwithValidated opq x =
@@ -107,7 +107,7 @@ instance PValidateData PMintValue where
 
 {- | Construct an empty 'PMintValue'.
 
-@since wip
+@since 3.6.0
 -}
 pemptyMintValue :: forall (s :: S). Term s PMintValue
 pemptyMintValue = punsafeDowncast pemptySortedValue
@@ -120,7 +120,7 @@ the given currency.
 If the quantity is zero, or if the provided currency symbol is the Ada symbol,
 the result is an empty 'PMintValue'.
 
-@since wip
+@since 3.6.0
 -}
 psingletonMintValue ::
   forall (s :: S).

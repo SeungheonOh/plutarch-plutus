@@ -55,7 +55,7 @@ instance PTryFrom PData (PAsData PCurrencySymbol)
 'PByteString' must be exactly 28 bytes, as Cardano minting policies are hashed
 with BLAKE2b-224.
 
-@since wip
+@since 3.6.0
 -}
 instance PValidateData PCurrencySymbol where
   pwithValidated opq x =

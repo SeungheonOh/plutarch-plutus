@@ -53,7 +53,7 @@ instance PTryFrom PData (PAsData PTxId)
 'PByteString' must be exactly 32 bytes, as Cardano transactions are hashed
 with BLAKE2b-256.
 
-@since wip
+@since 3.6.0
 -}
 instance PValidateData PTxId where
   pwithValidated opq x =
@@ -117,7 +117,7 @@ instance PTryFrom PData (PAsData PTxOutRef)
 exactly 32 bytes, as Cardano transactions are hashed with BLAKE2b-256, and
 the output index must be a non-negative 'PInteger'.
 
-@since wip
+@since 3.6.0
 -}
 instance PValidateData PTxOutRef where
   pwithValidated opq x =

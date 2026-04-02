@@ -85,7 +85,7 @@ newtype PColdCommitteeCredential (s :: S) = PColdCommitteeCredential (Term s PCr
     )
     via (DeriveNewtypePlutusType PColdCommitteeCredential)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via (DeriveNewtypePValidateData PColdCommitteeCredential PCredential)
@@ -121,7 +121,7 @@ newtype PHotCommitteeCredential (s :: S) = PHotCommitteeCredential (Term s PCred
     )
     via (DeriveNewtypePlutusType PHotCommitteeCredential)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via (DeriveNewtypePValidateData PHotCommitteeCredential PCredential)
@@ -157,7 +157,7 @@ newtype PDRepCredential (s :: S) = PDRepCredential (Term s PCredential)
     )
     via (DeriveNewtypePlutusType PDRepCredential)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via (DeriveNewtypePValidateData PDRepCredential PCredential)
@@ -193,7 +193,7 @@ data PDRep (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PDRep)
@@ -229,7 +229,7 @@ data PDelegatee (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PDelegatee)
@@ -273,7 +273,7 @@ data PTxCert (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PTxCert)
@@ -309,7 +309,7 @@ data PVoter (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PVoter)
@@ -345,7 +345,7 @@ data PVote (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PVote)
@@ -395,7 +395,7 @@ instance PTryFrom PData (PAsData PGovernanceActionId)
 must be exactly 32 bytes, as Cardano transactions are hashed with BLAKE2b-256,
 and the action index must be a non-negative 'PInteger'.
 
-@since wip
+@since 3.6.0
 -}
 instance PValidateData PGovernanceActionId where
   pwithValidated opq x =
@@ -435,7 +435,7 @@ data PCommittee (s :: S) = PCommittee
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PCommittee)
@@ -471,7 +471,7 @@ newtype PConstitution (s :: S) = PConstitution (Term s (PMaybeData PScriptHash))
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PConstitution)
@@ -507,7 +507,7 @@ data PProtocolVersion (s :: S) = PProtocolVersion
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PProtocolVersion)
@@ -544,7 +544,7 @@ newtype PChangedParameters (s :: S)
     )
     via (DeriveNewtypePlutusType PChangedParameters)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via (DeriveNewtypePValidateData PChangedParameters PData)
@@ -590,7 +590,7 @@ data PGovernanceAction (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PGovernanceAction)
@@ -627,7 +627,7 @@ data PProposalProcedure (s :: S) = PProposalProcedure
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PProposalProcedure)
@@ -669,7 +669,7 @@ data PScriptPurpose (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PScriptPurpose)
@@ -708,7 +708,7 @@ data PScriptInfo (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PScriptInfo)
@@ -747,7 +747,7 @@ data PTxInInfo (s :: S) = PTxInInfo
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PTxInInfo)
@@ -799,7 +799,7 @@ data PTxInfo (s :: S) = PTxInfo
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PTxInfo)
@@ -836,7 +836,7 @@ data PScriptContext (s :: S) = PScriptContext
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct PScriptContext)
@@ -852,7 +852,7 @@ instance PTryFrom PData (PAsData PScriptContext)
 
 {- | Find the input currently being validated.
 
-@since wip
+@since 3.6.0
 -}
 pfindOwnInput :: forall (s :: S). Term s (PScriptContext :--> PMaybe PTxInInfo)
 pfindOwnInput =
@@ -931,7 +931,7 @@ is 'PNothing'.
 This only searches the true transaction inputs and not the referenced
 transaction inputs.
 
-@since wip
+@since 3.6.0
 -}
 pfindTxInByTxOutRef ::
   forall (s :: S).
@@ -958,7 +958,7 @@ pfindTxInByTxOutRef = phoistAcyclic $
 {- | Find the indices of all the outputs that pay to the same script address we
 are currently spending from, if any.
 
-@since wip
+@since 3.6.0
 -}
 pfindContinuingOutputs :: forall (s :: S). Term s (PScriptContext :--> PBuiltinList PInteger)
 pfindContinuingOutputs =
@@ -994,7 +994,7 @@ pfindContinuingOutputs =
 {- | Get all the outputs that pay to the same script address we are currently
 spending from, if any.
 
-@since wip
+@since 3.6.0
 -}
 pgetContinuingOutputs :: forall (s :: S). Term s (PScriptContext :--> PBuiltinList (PAsData PTxOut))
 pgetContinuingOutputs =
@@ -1022,7 +1022,7 @@ pgetContinuingOutputs =
 
 {- | Check if a transaction was signed by the given public key.
 
-@since wip
+@since 3.6.0
 -}
 ptxSignedBy :: forall (s :: S). Term s (PTxInfo :--> PPubKeyHash :--> PBool)
 ptxSignedBy =
@@ -1033,7 +1033,7 @@ ptxSignedBy =
 
 {- | Get the Values paid to a public key address by a pending transaction.
 
-@since wip
+@since 3.6.0
 -}
 ppubKeyOutputsAt ::
   forall (s :: S).
@@ -1070,7 +1070,7 @@ ppubKeyOutputsAt =
 
 {- | Get the total value paid to a public key address by a pending transaction.
 
-@since wip
+@since 3.6.0
 -}
 pvaluePaidTo :: forall (s :: S). Term s (PTxInfo :--> PPubKeyHash :--> PLedgerValue)
 pvaluePaidTo =
@@ -1084,7 +1084,7 @@ pvaluePaidTo =
 
 {- Get the total value of inputs spent by this transaction.
 
-@since wip
+@since 3.6.0
 -}
 pvalueSpent :: forall (s :: S). Term s (PTxInfo :--> PLedgerValue)
 pvalueSpent =
@@ -1108,7 +1108,7 @@ pvalueSpent =
 
 {- Get the total value of outputs produced by this transaction.
 
-@since wip
+@since 3.6.0
 -}
 pvalueProduced :: forall (s :: S). Term s (PTxInfo :--> PLedgerValue)
 pvalueProduced =
@@ -1131,7 +1131,7 @@ pvalueProduced =
 
 {- | Get the 'PCurrencySymbol' of the current minting policy script.
 
-@since wip
+@since 3.6.0
 -}
 pownCurrencySymbol :: forall (s :: S). Term s (PScriptContext :--> PMaybe Value.PCurrencySymbol)
 pownCurrencySymbol =
@@ -1149,7 +1149,7 @@ pownCurrencySymbol =
 (identified by the hash of a transaction and an index into that
 transactions' outputs)
 
-@since wip
+@since 3.6.0
 -}
 pspendsOutput :: forall (s :: S). Term s (PTxInfo :--> PTxId :--> PInteger :--> PBool)
 pspendsOutput =

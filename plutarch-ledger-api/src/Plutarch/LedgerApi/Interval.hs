@@ -42,9 +42,9 @@ import PlutusLedgerApi.V3 qualified as Plutus
 -- | @since 2.0.0
 data PInterval (a :: S -> Type) (s :: S) = PInterval
   { pinterval'from :: Term s (PLowerBound a)
-  -- ^ @since wip
+  -- ^ @since 3.6.0
   , pinterval'to :: Term s (PUpperBound a)
-  -- ^ @since wip
+  -- ^ @since 3.6.0
   }
   deriving stock
     ( -- | @since 2.0.0
@@ -63,7 +63,7 @@ data PInterval (a :: S -> Type) (s :: S) = PInterval
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct (PInterval a))
@@ -95,7 +95,7 @@ data PLowerBound (a :: S -> Type) (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct (PLowerBound a))
@@ -138,7 +138,7 @@ data PUpperBound (a :: S -> Type) (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct (PUpperBound a))
@@ -185,7 +185,7 @@ data PExtended (a :: S -> Type) (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
-    , -- | @since wip
+    , -- | @since 3.6.0
       PValidateData
     )
     via (DeriveAsDataStruct (PExtended a))
@@ -387,7 +387,7 @@ pto = phoistAcyclic $
 
 {- | Create the unbounded interval @(-infty, +infty)@.
 
-@since wip
+@since 3.6.0
 -}
 punbounded ::
   forall (a :: S -> Type) (s :: S).

@@ -31,7 +31,7 @@ newtype PLovelace (s :: S) = PLovelace (Term s PInteger)
     )
     via (DeriveNewtypePlutusType PLovelace)
   deriving
-    ( -- | @since wip
+    ( -- | @since 3.6.0
       PValidateData
     )
     via (DeriveNewtypePValidateData PLovelace PInteger)
