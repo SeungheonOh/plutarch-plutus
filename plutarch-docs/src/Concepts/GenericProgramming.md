@@ -3,8 +3,8 @@
 <p>
 
 ```haskell
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-deprecations #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 module Plutarch.Docs.PMatch (Tree(..), swap, TreeRepr) where
 import Plutarch.Prelude
 import Plutarch.Internal.PlutusType (PlutusType (pcon', pmatch'))
