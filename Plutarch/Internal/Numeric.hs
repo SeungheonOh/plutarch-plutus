@@ -64,7 +64,7 @@ import Plutarch.Builtin.Integer (
   psubtractInteger,
  )
 import Plutarch.Internal.Eq (PEq ((#==)))
-import Plutarch.Internal.Fix (pfixHoisted)
+import Plutarch.Internal.Fix (pfix)
 import Plutarch.Internal.IsData (PIsData)
 import Plutarch.Internal.Lift (
   DeriveNewtypePLiftable,
@@ -81,13 +81,13 @@ import Plutarch.Internal.Lift (
   punsafeCoercePLifted,
  )
 import Plutarch.Internal.Ord (POrd ((#<=)))
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (
   DeriveNewtypePlutusType (DeriveNewtypePlutusType),
   PlutusType (PInner),
   pcon,
  )
+import Plutarch.Internal.Subtype (pto, punsafeDowncast, pupcast)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -102,7 +102,6 @@ import Plutarch.Internal.Term (
  )
 import Plutarch.Internal.Trace (ptraceInfo)
 import Plutarch.Maybe (PMaybe (PJust, PNothing))
-import Plutarch.Unsafe (punsafeDowncast)
 import PlutusCore qualified as PLC
 import Prettyprinter (Pretty)
 import Test.QuickCheck (
@@ -112,9 +111,10 @@ import Test.QuickCheck (
   functionMap,
  )
 import Test.QuickCheck qualified as QuickCheck
+import Test.QuickCheck.Instances ()
 
 -- | @since 1.10.0
-newtype PPositive (s :: S) = PPositive (Term s PInteger)
+newtype PPositive (s :: S) = PPositive (Term s PNatural)
   deriving stock
     ( -- | @since 1.10.0
       Generic
@@ -142,7 +142,7 @@ deriving via
     PLiftable PPositive
 
 -- | @since 1.10.0
-newtype Positive = UnsafeMkPositive {getPositive :: Integer}
+newtype Positive = UnsafeMkPositive {getPositive :: Natural}
   deriving stock
     ( -- | @since 1.10.0
       Show
@@ -154,20 +154,17 @@ newtype Positive = UnsafeMkPositive {getPositive :: Integer}
   deriving
     ( -- | @since 1.10.0
       Arbitrary
-    )
-    via QuickCheck.Positive Integer
-  deriving
-    ( -- | @since 1.10.0
+    , -- | @since 1.10.0
       CoArbitrary
     , -- | @since 1.10.0
       Pretty
     )
-    via Integer
+    via Natural
 
 -- | @since 1.10.0
 instance Function Positive where
   {-# INLINEABLE function #-}
-  function = functionMap @Integer coerce coerce
+  function = functionMap @Natural coerce coerce
 
 {- | Converts negative 'Integer's into their absolute values, positive
 'Integer's into their 'Positive' equivalents. Errors on 0.
@@ -176,13 +173,13 @@ instance Function Positive where
 -}
 toPositiveAbs :: Integer -> Positive
 toPositiveAbs i = UnsafeMkPositive $ case signum i of
-  (-1) -> abs i
+  (-1) -> fromIntegral $ abs i
   0 -> error "toPositiveAbs: called with zero"
-  _ -> i
+  _ -> fromIntegral i
 
 -- | @since 1.10.0
 positiveToInteger :: Positive -> Integer
-positiveToInteger = getPositive
+positiveToInteger = fromIntegral . getPositive
 
 -- | @since 1.10.0
 newtype PNatural (s :: S) = PNatural (Term s PInteger)
@@ -251,8 +248,9 @@ class PAdditiveSemigroup (a :: S -> Type) where
   x #+ y = punsafeDowncast $ pto x #+ pto y
   {-# INLINEABLE pscalePositive #-}
 
-  -- | This defaults to exponentiation-by-squaring, which in general is the best
-  -- we can do.
+  {- | This defaults to exponentiation-by-squaring, which in general is the best
+  we can do.
+  -}
   pscalePositive ::
     forall (s :: S).
     Term s a ->
@@ -265,38 +263,34 @@ infix 6 #+
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PPositive where
-  {-# INLINEABLE (#+) #-}
-  x #+ y = punsafeCoerce $ paddInteger # pto x # pto y
   {-# INLINEABLE pscalePositive #-}
   pscalePositive b e = b #* e
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PNatural where
-  {-# INLINEABLE (#+) #-}
-  x #+ y = pcon . PNatural $ paddInteger # pto x # pto y
   {-# INLINEABLE pscalePositive #-}
-  pscalePositive b e = b #* punsafeCoerce e
+  pscalePositive b e = b #* pupcast e
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PInteger where
   {-# INLINEABLE (#+) #-}
   x #+ y = paddInteger # x # y
   {-# INLINEABLE pscalePositive #-}
-  pscalePositive b e = b #* pto e
+  pscalePositive b e = b #* pupcast e
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PBuiltinBLS12_381_G1_Element where
   {-# INLINEABLE (#+) #-}
   x #+ y = pbls12_381_G1_add # x # y
   {-# INLINEABLE pscalePositive #-}
-  pscalePositive x p = pbls12_381_G1_scalarMul # pto p # x
+  pscalePositive x p = pbls12_381_G1_scalarMul # pupcast p # x
 
 -- | @since 1.10.0
 instance PAdditiveSemigroup PBuiltinBLS12_381_G2_Element where
   {-# INLINEABLE (#+) #-}
   x #+ y = pbls12_381_G2_add # x # y
   {-# INLINEABLE pscalePositive #-}
-  pscalePositive x p = pbls12_381_G2_scalarMul # pto p # x
+  pscalePositive x p = pbls12_381_G2_scalarMul # pupcast p # x
 
 {- | The notion of zero, as well as a way to scale by naturals.
 
@@ -318,6 +312,11 @@ The default implementation of 'pscaleNatural' ensures these laws hold.
 -}
 class PAdditiveSemigroup a => PAdditiveMonoid (a :: S -> Type) where
   pzero :: forall (s :: S). Term s a
+  default pzero ::
+    forall (s :: S).
+    PAdditiveMonoid (PInner a) =>
+    Term s a
+  pzero = punsafeDowncast pzero
   {-# INLINEABLE pscaleNatural #-}
   pscaleNatural ::
     forall (s :: S).
@@ -340,8 +339,6 @@ instance PAdditiveMonoid PInteger where
 
 -- | @since 1.10.0
 instance PAdditiveMonoid PNatural where
-  {-# INLINEABLE pzero #-}
-  pzero = pcon . PNatural . pconstantInteger $ 0
   {-# INLINEABLE pscaleNatural #-}
   pscaleNatural n1 n2 = n1 #* n2
 
@@ -412,8 +409,8 @@ class PAdditiveMonoid a => PAdditiveGroup (a :: S -> Type) where
         pzero
         ( pif
             (e' #<= pzero)
-            (pnegate # pscalePositive b (punsafeDowncast (pnegate # e')))
-            (pscalePositive b (punsafeDowncast e'))
+            (pnegate # pscalePositive b (punsafeCoerce $ pnegate # e'))
+            (pscalePositive b (punsafeCoerce e'))
         )
 
 -- | @since 1.10.0
@@ -486,14 +483,10 @@ class PMultiplicativeSemigroup (a :: S -> Type) where
 infix 6 #*
 
 -- | @since 1.10.0
-instance PMultiplicativeSemigroup PPositive where
-  {-# INLINEABLE (#*) #-}
-  x #* y = punsafeCoerce $ pmultiplyInteger # pto x # pto y
+instance PMultiplicativeSemigroup PPositive
 
 -- | @since 1.10.0
-instance PMultiplicativeSemigroup PNatural where
-  {-# INLINEABLE (#*) #-}
-  x #* y = pcon . PNatural $ pmultiplyInteger # pto x # pto y
+instance PMultiplicativeSemigroup PNatural
 
 -- | @since 1.10.0
 instance PMultiplicativeSemigroup PInteger where
@@ -524,6 +517,11 @@ If you define 'ppowNatural', ensure the following as well:
 -}
 class PMultiplicativeSemigroup a => PMultiplicativeMonoid (a :: S -> Type) where
   pone :: forall (s :: S). Term s a
+  default pone ::
+    forall (s :: S).
+    PMultiplicativeMonoid (PInner a) =>
+    Term s a
+  pone = punsafeDowncast pone
   {-# INLINEABLE ppowNatural #-}
   ppowNatural ::
     forall (s :: S).
@@ -534,17 +532,13 @@ class PMultiplicativeSemigroup a => PMultiplicativeMonoid (a :: S -> Type) where
     pif
       (n' #== pzero)
       pone
-      (ppowPositive x (pcon (PPositive $ pto n')))
+      (ppowPositive x (punsafeCoerce n'))
 
 -- | @since 1.10.0
-instance PMultiplicativeMonoid PPositive where
-  {-# INLINEABLE pone #-}
-  pone = punsafeCoerce $ pconstantInteger 1
+instance PMultiplicativeMonoid PPositive
 
 -- | @since 1.10.0
-instance PMultiplicativeMonoid PNatural where
-  {-# INLINEABLE pone #-}
-  pone = pcon . PNatural $ pconstantInteger 1
+instance PMultiplicativeMonoid PNatural
 
 -- | @since 1.10.0
 instance PMultiplicativeMonoid PInteger where
@@ -570,8 +564,7 @@ ppositive = phoistAcyclic $
     pif
       (i #<= pconstantInteger 0)
       (pcon PNothing)
-      $ pcon . PJust . pcon
-      $ PPositive i
+      (pcon . PJust . punsafeCoerce $ i)
 
 {- | A default implementation of exponentiation-by-squaring with a
 strictly-positive exponent.
@@ -591,14 +584,14 @@ pbySquaringDefault ::
 pbySquaringDefault f b e = go # b # e
   where
     go :: forall (s'' :: S). Term s'' (a :--> PPositive :--> a)
-    go = phoistAcyclic $ pfixHoisted #$ plam $ \self b e -> plet e $ \e' ->
+    go = phoistAcyclic $ pfix $ \self -> plam $ \b e -> plet e $ \e' ->
       pif
-        (pto e' #== pconstantInteger 1)
+        (pto e' #== pone)
         b
-        ( plet (self # b #$ punsafeDowncast (pquotientInteger # pto e' # pconstantInteger 2)) $ \below ->
+        ( plet (self # b #$ punsafeDowncast (punsafeDowncast (pquotientInteger # pupcast e' # pconstantInteger 2))) $ \below ->
             plet (f below below) $ \res ->
               pif
-                ((premainderInteger # pto e' # pconstantInteger 2) #== pconstantInteger 1)
+                ((premainderInteger # pupcast e' # pconstantInteger 2) #== pconstantInteger 1)
                 (f b res)
                 res
         )

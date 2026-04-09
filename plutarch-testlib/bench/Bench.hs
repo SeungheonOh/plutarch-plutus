@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
 
 module Main (main) where
 
@@ -12,19 +13,23 @@ import Data.Vector.Strict qualified as Vector
 import GHC.Generics (Generic)
 import Generics.SOP qualified as SOP
 import Plutarch.Array (
-  pfoldlArray,
+  pfoldArray,
   pfromArray,
   pmapArray,
   ppullArrayToList,
   ppullArrayToSOPList,
   pzipWithArray,
  )
+import Plutarch.Internal.Case (punsafeCase)
 import Plutarch.Internal.Lift (LiftError (CouldNotDecodeData, OtherLiftError))
-import Plutarch.Internal.Parse (PValidateData (pwithValidated), pparseData)
 import Plutarch.Internal.Term (
   Config (NoTracing, Tracing),
   LogLevel (LogInfo),
+  RawTerm (RCase),
+  Term (Term),
+  TermResult (TermResult),
   TracingMode (DoTracing),
+  asRawTerm,
   punsafeCoerce,
  )
 import Plutarch.LedgerApi.Utils (
@@ -86,9 +91,113 @@ main =
       , testGroup "AssocMap" assocMapBenches
       , testGroup "PBuiltinPair" pbuiltinPairBenches
       , testGroup "pfix" pfixBenches
+      , testGroup "pif" pifBenches
+      , testGroup "list matching" listMatchingBenches
       ]
 
 -- Suites
+
+listMatchingBenches :: [TestTree]
+listMatchingBenches =
+  [ bench
+      "head builtin"
+      ( precompileTerm (plam $ \x -> pheadBuiltin # x)
+          # pconstant @(PBuiltinList PInteger) [1]
+      )
+  , bcompare "$(NF-1) == \"list matching\" && $NF == \"head builtin\"" $
+      bench
+        "head via partial match"
+        ( precompileTerm (plam pheadPM)
+            # pconstant @(PBuiltinList PInteger) [1]
+        )
+  , bench
+      "tail builtin"
+      ( precompileTerm (plam $ \x -> ptailBuiltin # x)
+          # pconstant @(PBuiltinList PInteger) [1, 2]
+      )
+  , bcompare "$(NF-1) == \"list matching\" && $NF == \"tail builtin\"" $
+      bench
+        "tail via partial match"
+        ( precompileTerm (plam ptailPM)
+            # pconstant @(PBuiltinList PInteger) [1, 2]
+        )
+  , bench
+      "null builtin"
+      ( precompileTerm (plam $ \x -> pnullBuiltin # x)
+          # pconstant @(PBuiltinList PInteger) [1]
+      )
+  , bcompare "$(NF-1) == \"list matching\" && $NF == \"null builtin\"" $
+      bench
+        "null via pattern match"
+        ( precompileTerm (plam pnullPM)
+            # pconstant @(PBuiltinList PInteger) [1]
+        )
+  , bench
+      "head-tail via builtins"
+      ( precompileTerm (plam $ \x -> pcons # (pheadBuiltin # x) # (ptailBuiltin # x))
+          # pconstant @(PBuiltinList PInteger) [1]
+      )
+  , bcompare "$(NF-1) == \"list matching\" && $NF == \"head-tail via builtins\"" $
+      bench
+        "head-tail via pattern match"
+        (precompileTerm (plam pheadTailPM) # pconstant @(PBuiltinList PInteger) [1])
+  ]
+  where
+    pheadPM ::
+      forall (a :: S -> Type) (s :: S).
+      Term s (PBuiltinList a) ->
+      Term s a
+    pheadPM t = Term $ \level -> do
+      TermResult matchRaw matchDeps <- asRawTerm (plam const) level
+      TermResult rawT depsT <- asRawTerm t level
+      let allDeps = matchDeps <> depsT
+      pure . TermResult (RCase rawT [matchRaw]) $ allDeps
+    ptailPM ::
+      forall (a :: S -> Type) (s :: S).
+      Term s (PBuiltinList a) ->
+      Term s (PBuiltinList a)
+    ptailPM t = Term $ \level -> do
+      TermResult matchRaw matchDeps <- asRawTerm (plam $ \_ xs -> xs) level
+      TermResult rawT depsT <- asRawTerm t level
+      let allDeps = matchDeps <> depsT
+      pure . TermResult (RCase rawT [matchRaw]) $ allDeps
+    pnullPM ::
+      forall (a :: S -> Type) (s :: S).
+      Term s (PBuiltinList a) ->
+      Term s PBool
+    pnullPM t = Term $ \level -> do
+      TermResult nilRaw nilDeps <- asRawTerm (pcon PFalse) level
+      TermResult consRaw consDeps <- asRawTerm (plam $ \_ _ -> pcon PTrue) level
+      TermResult rawT depsT <- asRawTerm t level
+      let allDeps = nilDeps <> consDeps <> depsT
+      pure . TermResult (RCase rawT [consRaw, nilRaw]) $ allDeps
+    pheadTailPM ::
+      Term s (PBuiltinList PInteger) ->
+      Term s (PBuiltinList PInteger)
+    pheadTailPM t = Term $ \level -> do
+      TermResult matchRaw matchDeps <- asRawTerm (plam $ \x xs -> pcons @PBuiltinList @PInteger # x # xs) level
+      TermResult rawT depsT <- asRawTerm t level
+      let allDeps = matchDeps <> depsT
+      pure . TermResult (RCase rawT [matchRaw]) $ allDeps
+
+pifBenches :: [TestTree]
+pifBenches =
+  [ bench
+      "pif lazy"
+      ( precompileTerm (plam $ \c x y -> pif c x y)
+          # pconstant @PBool True
+          # pconstant @PInteger 1
+          # pconstant @PInteger 2
+      )
+  , bcompare "$(NF-1) == \"pif\" && $NF == \"pif lazy\"" $
+      bench
+        "pif strict"
+        ( precompileTerm (plam $ \c x y -> pif' # c # x # y)
+            # pconstant @PBool True
+            # pconstant @PInteger 1
+            # pconstant @PInteger 2
+        )
+  ]
 
 pfixBenches :: [TestTree]
 pfixBenches =
@@ -156,7 +265,7 @@ arrayBenches =
   , bcompare "$(NF-1) == \"Array\" && $NF == \"map-fold\"" $
       bench
         "with PPullArray"
-        ( precompileTerm (plam $ \x -> pfoldlArray ptimes 1 . pmapArray pinc . pfromArray $ x)
+        ( precompileTerm (plam $ \x -> pfoldArray ptimes 1 . pmapArray pinc . pfromArray $ x)
             # pconstant @(PArray PInteger) iota
         )
   ]
@@ -474,31 +583,24 @@ instance PLiftable PASum where
 instance PTryFrom PData (PAsData PASum) where
   ptryFrom' opq = runTermCont $ do
     p <- tcont $ plet (pasConstr # opq)
-    ix <- tcont $ plet (pfstBuiltin # p)
-    fields <- tcont $ plet (psndBuiltin # p)
+    PBuiltinPair ix fields <- tcont $ pmatch p
     pure
-      ( pif
-          (ix #== 0)
-          ( unTermCont $ do
+      ( punsafeCase
+          ix
+          [ -- POne
+            unTermCont $ do
               _ <- tcont $ ptryFrom @(PAsData PByteString) (pheadBuiltin # fields)
               pure . punsafeCoerce $ opq
-          )
-          ( pif
-              (ix #== 1)
-              ( unTermCont $ do
-                  _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # fields)
-                  pure . punsafeCoerce $ opq
-              )
-              ( pif
-                  (ix #== 2)
-                  ( unTermCont $ do
-                      _ <- tcont $ ptryFrom @(PAsData PByteString) (pheadBuiltin # fields)
-                      _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin #$ ptailBuiltin # fields)
-                      pure . punsafeCoerce $ opq
-                  )
-                  perror
-              )
-          )
+          , -- PTwo
+            unTermCont $ do
+              _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # fields)
+              pure . punsafeCoerce $ opq
+          , -- PThree
+            pheadTailBuiltin fields $ \h t -> unTermCont $ do
+              _ <- tcont $ ptryFrom @(PAsData PByteString) h
+              _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # t)
+              pure . punsafeCoerce $ opq
+          ]
       , ()
       )
 
@@ -524,11 +626,16 @@ instance PLiftable PAProduct where
 instance PTryFrom PData (PAsData PAProduct) where
   ptryFrom' opq = runTermCont $ do
     ell <- tcont $ plet (pasList # opq)
-    _ <- tcont $ ptryFrom @(PAsData PByteString) (pheadBuiltin # ell)
-    t1 <- tcont $ plet (ptailBuiltin # ell)
-    _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # t1)
-    _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin #$ ptailBuiltin # t1)
-    pure (punsafeCoerce opq, ())
+    pure
+      ( pheadTailBuiltin ell $ \h1 t1 ->
+          pheadTailBuiltin t1 $ \h2 t2 ->
+            unTermCont $ do
+              _ <- tcont $ ptryFrom @(PAsData PByteString) h1
+              _ <- tcont $ ptryFrom @(PAsData PInteger) h2
+              _ <- tcont $ ptryFrom @(PAsData PInteger) (pheadBuiltin # t2)
+              pure . punsafeCoerce $ opq
+      , ()
+      )
 
 data PATag (s :: S) = PTagOne | PTagTwo | PTagThree
   deriving stock (Generic)
@@ -554,14 +661,12 @@ instance PTryFrom PData (PAsData PATag) where
   ptryFrom' opq = runTermCont $ do
     i <- tcont $ plet (pasInt # opq)
     pure
-      ( pif
-          (i #< 0)
-          perror
-          ( pif
-              (i #>= 3)
-              perror
-              (punsafeCoerce opq)
-          )
+      ( punsafeCase
+          i
+          [ popaque $ punsafeCoerce opq
+          , popaque $ punsafeCoerce opq
+          , popaque $ punsafeCoerce opq
+          ]
       , ()
       )
 

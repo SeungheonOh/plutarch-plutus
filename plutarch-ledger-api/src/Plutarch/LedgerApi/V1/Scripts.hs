@@ -12,10 +12,6 @@ module Plutarch.LedgerApi.V1.Scripts (
 import Data.ByteString (ByteString)
 import GHC.Generics (Generic)
 import Generics.SOP qualified as SOP
-import Plutarch.Internal.Parse (
-  DeriveNewtypePValidateData,
-  PValidateData,
- )
 import Plutarch.Prelude
 import PlutusLedgerApi.V3 qualified as Plutus
 import PlutusTx.Builtins.Internal qualified as PlutusTx
@@ -43,14 +39,21 @@ newtype PScriptHash (s :: S) = PScriptHash (Term s PByteString)
       PlutusType
     )
     via (DeriveNewtypePlutusType PScriptHash)
-  deriving
-    ( -- | @since 3.5.0
-      PValidateData
-    )
-    via (DeriveNewtypePValidateData PScriptHash PByteString)
 
 -- | @since 3.4.0
 instance PTryFrom PData (PAsData PScriptHash)
+
+-- | @since 3.5.0
+instance PValidateData PScriptHash where
+  pwithValidated opq x =
+    plet (plengthBS #$ pfromData $ pparseData @PByteString opq) $ \bsSize ->
+      pif
+        (bsSize #== pscriptHashByteSize)
+        x
+        perror
+
+pscriptHashByteSize :: forall (s :: S). Term s PInteger
+pscriptHashByteSize = 28
 
 -- | @since 3.3.0
 instance PLiftable PScriptHash where
@@ -73,18 +76,24 @@ newtype PDatum (s :: S) = PDatum (Term s PData)
     )
   deriving anyclass
     ( -- | @since 2.0.0
-      PlutusType
-    , -- | @since 2.0.0
       PIsData
     , -- | @since 2.0.0
       PEq
     , -- | @since 2.0.0
       PShow
+    , -- | @since 3.6.0
+      SOP.Generic
     )
-
--- | @since 2.0.0
-instance DerivePlutusType PDatum where
-  type DPTStrat _ = PlutusTypeNewtype
+  deriving
+    ( -- | @since 2.0.0
+      PlutusType
+    )
+    via (DeriveNewtypePlutusType PDatum)
+  deriving
+    ( -- | @since 3.6.0
+      PValidateData
+    )
+    via (DeriveNewtypePValidateData PDatum PData)
 
 -- | @since 3.3.0
 deriving via
@@ -122,6 +131,18 @@ newtype PDatumHash (s :: S) = PDatumHash (Term s PByteString)
 -- | @since 3.4.0
 instance PTryFrom PData (PAsData PDatumHash)
 
+-- | @since 3.6.0
+instance PValidateData PDatumHash where
+  pwithValidated opq x =
+    plet (plengthBS #$ pfromData $ pparseData @PByteString opq) $ \bsSize ->
+      pif
+        (bsSize #== pdatumHashByteSize)
+        x
+        perror
+
+pdatumHashByteSize :: forall (s :: S). Term s PInteger
+pdatumHashByteSize = 32
+
 -- | @since 3.3.0
 instance PLiftable PDatumHash where
   type AsHaskell PDatumHash = Plutus.DatumHash
@@ -142,8 +163,8 @@ newtype PRedeemer (s :: S) = PRedeemer (Term s PData)
       Generic
     )
   deriving anyclass
-    ( -- | @since 2.0.0
-      PlutusType
+    ( -- | @since 3.6.0
+      SOP.Generic
     , -- | @since 2.0.0
       PIsData
     , -- | @since 2.0.0
@@ -151,13 +172,19 @@ newtype PRedeemer (s :: S) = PRedeemer (Term s PData)
     , -- | @since 2.0.0
       PShow
     )
+  deriving
+    ( -- | @since 2.0.0
+      PlutusType
+    )
+    via (DeriveNewtypePlutusType PRedeemer)
+  deriving
+    ( -- | @since 3.6.0
+      PValidateData
+    )
+    via (DeriveNewtypePValidateData PRedeemer PData)
 
 -- | @since 3.4.0
 instance PTryFrom PData (PAsData PRedeemer)
-
--- | @since 2.0.0
-instance DerivePlutusType PRedeemer where
-  type DPTStrat _ = PlutusTypeNewtype
 
 -- | @since 3.3.0
 deriving via
@@ -191,6 +218,15 @@ newtype PRedeemerHash (s :: S) = PRedeemerHash (Term s PByteString)
 
 -- | @since 3.4.0
 instance PTryFrom PData (PAsData PRedeemerHash)
+
+-- | @since 3.6.0
+instance PValidateData PRedeemerHash where
+  pwithValidated opq x =
+    plet (plengthBS #$ pfromData $ pparseData @PByteString opq) $ \bsSize ->
+      pif
+        (bsSize #== pdatumHashByteSize)
+        x
+        perror
 
 -- | @since 3.3.0
 instance PLiftable PRedeemerHash where

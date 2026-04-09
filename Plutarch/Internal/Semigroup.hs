@@ -25,7 +25,6 @@ import Plutarch.Builtin.BLS (
 import Plutarch.Builtin.Bool (
   PBool (PFalse, PTrue),
   pif,
-  pif',
   pnot,
  )
 import Plutarch.Builtin.ByteString (
@@ -61,8 +60,12 @@ import Plutarch.Internal.Numeric (
   (#+),
  )
 import Plutarch.Internal.Ord (POrd)
-import Plutarch.Internal.Other (pto)
-import Plutarch.Internal.PlutusType (PlutusType (PInner), pcon)
+import Plutarch.Internal.PlutusType (
+  DeriveNewtypePlutusType (DeriveNewtypePlutusType),
+  PlutusType (PInner),
+  pcon,
+ )
+import Plutarch.Internal.Subtype (PSubtype, pto, punsafeDowncast, pupcast)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -72,10 +75,10 @@ import Plutarch.Internal.Term (
   (#),
   (#$),
  )
-import Plutarch.Repr.Newtype (DeriveNewtypePlutusType (DeriveNewtypePlutusType))
-import Plutarch.Unsafe (punsafeDowncast)
 import PlutusCore qualified as PLC
+import PlutusCore.Builtin (KnownBuiltinType)
 import Universe (Includes)
+import UntypedPlutusCore qualified as UPLC
 
 {- | = Laws
 
@@ -128,7 +131,7 @@ instance PSemigroup PByteString where
   pstimes p bs = plet bs $ \bs' ->
     pif
       (plengthBS # bs' #== 1)
-      (preplicateBS # pto p #$ pindexBS # bs' # 0)
+      (preplicateBS # pupcast p #$ pindexBS # bs' # 0)
       (pbySquaringDefault (#<>) bs' p)
 
 {- | BLS points form a group technically, but a @PGroup@ notion would be too
@@ -241,16 +244,20 @@ newtype PAnd (a :: S -> Type) (s :: S)
     )
     via (DeriveNewtypePlutusType (PAnd a))
 
--- | @since 1.10.0
+-- | @since 1.13.0
 deriving via
   DeriveNewtypePLiftable (PAnd a) (AsHaskell a)
   instance
-    (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) => PLiftable (PAnd a)
+    ( PLiftable a
+    , PLC.DefaultUni `Includes` PlutusRepr a
+    , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)
+    ) =>
+    PLiftable (PAnd a)
 
 -- | @since 1.10.0
 instance PSemigroup (PAnd PBool) where
   {-# INLINEABLE (#<>) #-}
-  x #<> y = pif' # pto x # y # x
+  x #<> y = pif (pto x) y x
 
   -- \| 'PBool' is idempotent under AND.
   {-# INLINEABLE pstimes #-}
@@ -303,11 +310,15 @@ newtype POr (a :: S -> Type) (s :: S)
     )
     via (DeriveNewtypePlutusType (POr a))
 
--- | @since 1.10.0
+-- | @since 1.13.0
 deriving via
   DeriveNewtypePLiftable (POr a) (AsHaskell a)
   instance
-    (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) => PLiftable (POr a)
+    ( PLiftable a
+    , PLC.DefaultUni `Includes` PlutusRepr a
+    , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)
+    ) =>
+    PLiftable (POr a)
 
 -- | @since 1.10.0
 instance PSemigroup (POr PBool) where
@@ -365,16 +376,20 @@ newtype PXor (a :: S -> Type) (s :: S)
     )
     via (DeriveNewtypePlutusType (PXor a))
 
--- | @since 1.10.0
+-- | @since 1.13.0
 deriving via
   DeriveNewtypePLiftable (PXor a) (AsHaskell a)
   instance
-    (PLiftable a, PLC.DefaultUni `Includes` PlutusRepr a) => PLiftable (PXor a)
+    ( PLiftable a
+    , PLC.DefaultUni `Includes` PlutusRepr a
+    , KnownBuiltinType (UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun ()) (PlutusRepr a)
+    ) =>
+    PLiftable (PXor a)
 
 -- | @since 1.10.0
 instance PSemigroup (PXor PBool) where
   {-# INLINEABLE (#<>) #-}
-  x #<> y = pif' # pto x # (pcon . PXor $ pnot # pto y) # y
+  x #<> y = pif (pto x) (pcon . PXor $ pnot # pto y) y
 
   -- \| Because XOR is self-inverting, there are only two outcomes: either the
   -- argument (if the exponent is odd) or 'PFalse' (if it's even).
@@ -411,12 +426,12 @@ instance PMonoid (PXor PByteString) where
 
 pxortimes ::
   forall (a :: S -> Type) (b :: S -> Type) (s :: S).
-  PInner a ~ PInteger =>
+  PSubtype PInteger a =>
   Term s b ->
   Term s a ->
   Term s (PXor b) ->
   Term s (PXor b)
 pxortimes def x =
   pif
-    ((pdiv # pto x # 2) #== 0)
+    ((pdiv # pupcast x # 2) #== 0)
     (pcon . PXor $ def)

@@ -68,5 +68,10 @@ tests =
             , goldenEval "direct-3" (pif (pconstant @PInteger 1 #< 2) (pconstant @PInteger 1) (pif (pconstant @PInteger 2 #< 3) 2 3))
             , goldenEval "pcond-3" (pcond [(pconstant @PInteger 1 #< 2, pconstant @PInteger 1), (pconstant @PInteger 2 #< 3, 2)] 3)
             ]
+        , goldenGroup
+            "PValidateData"
+            [ goldenEval "pparseData (PFalse)" (pparseData @PBool . pforgetData $ pconstrBuiltin # 0 # pcon PNil)
+            , goldenEval "pparseData (PTrue)" (pparseData @PBool . pforgetData $ pconstrBuiltin # 1 # pcon PNil)
+            ]
         ]
     ]

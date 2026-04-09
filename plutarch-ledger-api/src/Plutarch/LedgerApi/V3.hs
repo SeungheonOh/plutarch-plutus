@@ -25,10 +25,6 @@ module Plutarch.LedgerApi.V3 (
   Contexts.PTxInInfo (..),
   V2Tx.POutputDatum (..),
 
-  -- ** Functions
-  pgetContinuingOutputs,
-  pfindInputByOutRef,
-
   -- * Script
 
   -- ** Types
@@ -43,7 +39,6 @@ module Plutarch.LedgerApi.V3 (
   datumHash,
   redeemerHash,
   dataHash,
-  pparseDatum,
 
   -- * Value
   Value.PRawValue (..),
@@ -52,6 +47,10 @@ module Plutarch.LedgerApi.V3 (
   Value.PCurrencySymbol (..),
   Value.PTokenName (..),
   Value.PLovelace (..),
+  MintValue.PMintValue,
+  MintValue.pemptyMintValue,
+  MintValue.psingletonMintValue,
+  MintValue.ptoMintValue,
 
   -- * Assoc map
 
@@ -138,10 +137,9 @@ import Plutarch.LedgerApi.V1.Scripts qualified as Scripts
 import Plutarch.LedgerApi.V1.Time qualified as Time
 import Plutarch.LedgerApi.V2.Tx qualified as V2Tx
 import Plutarch.LedgerApi.V3.Contexts qualified as Contexts
+import Plutarch.LedgerApi.V3.MintValue qualified as MintValue
 import Plutarch.LedgerApi.V3.Tx qualified as V3Tx
 import Plutarch.LedgerApi.Value qualified as Value
-import Plutarch.Maybe (pmapMaybe)
-import Plutarch.Prelude
 import Plutarch.Script (Script (unScript))
 import PlutusLedgerApi.Common (serialiseUPLC)
 import PlutusLedgerApi.V3 qualified as Plutus
@@ -189,118 +187,6 @@ dataHash = hashData . Plutus.toData
 -- | @since 2.0.0
 redeemerHash :: Plutus.Redeemer -> Plutus.RedeemerHash
 redeemerHash = coerce . dataHash
-
-{- | Find the output txns corresponding to the input being validated.
-
-  Takes as arguments the inputs, outputs and the spending transaction referenced
-  from `PScriptPurpose`.
-
-  __Example:__
-
-  @
-  ctx <- tcont $ pletFields @["txInfo", "purpose"] sc
-  pmatchC (getField @"purpose" ctx) >>= \case
-    PSpending outRef' -> do
-      let outRef = pfield @"_0" # outRef'
-          inputs = pfield @"inputs" # (getField @"txInfo" ctx)
-          outputs = pfield @"outputs" # (getField @"txInfo" ctx)
-      pure $ pgetContinuingOutputs # inputs # outputs # outRef
-    _ ->
-      pure $ ptraceInfoError "not a spending tx"
-  @
-
-  @since 2.1.0
--}
-pgetContinuingOutputs ::
-  forall (s :: S).
-  Term
-    s
-    ( PBuiltinList (PAsData Contexts.PTxInInfo)
-        :--> PBuiltinList V2Tx.PTxOut
-        :--> V3Tx.PTxOutRef
-        :--> PBuiltinList V2Tx.PTxOut
-    )
-pgetContinuingOutputs = phoistAcyclic $
-  plam $ \inputs outputs outRef ->
-    pmatch (pfindInputByOutRef # inputs # outRef) $ \case
-      PJust tx -> unTermCont $ do
-        txInInfo <- pmatchC tx
-        txOut <- pmatchC $ Contexts.ptxInInfo'resolved txInInfo
-        outAddr <- pletC $ V2Tx.ptxOut'address txOut
-
-        pure $ pfilter # (matches # outAddr) # outputs
-      PNothing ->
-        ptraceInfoError "can't get any continuing outputs"
-  where
-    matches ::
-      forall (s' :: S).
-      Term s' (Address.PAddress :--> V2Tx.PTxOut :--> PBool)
-    matches = phoistAcyclic $
-      plam $ \adr txOut ->
-        pmatch txOut $ \out ->
-          adr #== V2Tx.ptxOut'address out
-
-{- | Look up an input by its output reference.
-
-  Returns the input corresponding to the given output reference from a list of
-  inputs. If no matching input exists, the result is `PNothing`.
-
-  __Example:__
-
-  @
-  ctx <- tcont $ pletFields @["txInfo", "purpose"] sc
-  pmatchC (getField @"purpose" ctx) >>= \case
-    PSpending outRef' -> do
-      let outRef = pfield @"_0" # outRef'
-          inputs = pfield @"inputs" # (getField @"txInfo" ctx)
-      pure $ pfindInputByOutRef # inputs # outRef
-    _ ->
-      pure $ ptraceInfoError "not a spending tx"
-  @
-
-  @since 3.5.0
--}
-pfindInputByOutRef ::
-  forall (s :: S).
-  Term
-    s
-    ( PBuiltinList (PAsData Contexts.PTxInInfo)
-        :--> V3Tx.PTxOutRef
-        :--> PMaybe Contexts.PTxInInfo
-    )
-pfindInputByOutRef = phoistAcyclic $
-  plam $ \inputs outRef ->
-    pmapMaybe # plam pfromData #$ pfind # (matches # outRef) # inputs
-  where
-    matches ::
-      forall (s' :: S).
-      Term s' (V3Tx.PTxOutRef :--> PAsData Contexts.PTxInInfo :--> PBool)
-    matches = phoistAcyclic $
-      plam $ \outRef txininfo ->
-        pmatch (pfromData txininfo) $ \ininfo ->
-          outRef #== Contexts.ptxInInfo'outRef ininfo
-
-{- | Lookup up the datum given the datum hash.
-
-  Takes as argument the datum assoc list from a `PTxInfo`. Validates the datum
-  using `PTryFrom`.
-
-  __Example:__
-
-  @
-  pparseDatum @MyType # datumHash #$ pfield @"datums" # txinfo
-  @
-
-  @since 2.1.2
--}
-pparseDatum ::
-  forall (a :: S -> Type) (s :: S).
-  PTryFrom PData (PAsData a) =>
-  Term s (Scripts.PDatumHash :--> AssocMap.PUnsortedMap Scripts.PDatumHash Scripts.PDatum :--> PMaybe (PAsData a))
-pparseDatum = phoistAcyclic $ plam $ \dh datums ->
-  pmatch (AssocMap.plookup # dh # datums) $ \case
-    PNothing -> pcon PNothing
-    PJust datum -> pcon . PJust $ ptryFrom (pto datum) fst
 
 -- Helpers
 

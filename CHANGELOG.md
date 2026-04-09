@@ -1,6 +1,50 @@
 # Revision history for plutarch
 
-# Unreleased
+# UNRELEASED
+
+# 1.13.0 -- 04-03-2026
+
+## Added
+
+* `PValidateData` instance for `PPositive`.
+* `pheadTailBuiltin`, for use when the list is known non-empty and both the head
+  and tail are needed
+* `punsafeCase`, to give access to the UPLC `Case` construct more conveniently
+* `prfoldArray`, which folds a pull array from highest-to-lowest indexes
+* `PShow` instance for `PNatural`
+* `punsafeCase` is now exported from `Plutarch.Unsafe`.
+
+## Changed
+
+* Bump `plutus-core` to 1.60.0.0
+* Add `KnownBuiltinType` constraint for various `PLiftable` instances as per the
+  new requirements from `plutus-core`. This led to some redundant `Includes`
+  constraints being removed as well.
+* `pif'` is now deprecated, as builtin casing on `Bool` outperforms it
+* `pfstBuiltin` and `psndBuiltin` are now deprecated, as pattern matching on
+  `PBuiltinPair` outperforms it
+* `hrecField` has been made hidden. Not only should this not be used anymore, it
+  was deprecated for a long time already.
+* Replaced all internal uses of `pfixHoisted` with `pfix` for improved
+  performance, at the cost of a negligible increase in script size in some
+  cases.
+* `Plutarch.Internal.Parse` definitions are now re-exported from
+  `Plutarch.Prelude`. 
+* `pfoldlArray` renamed to `pfoldArray`.
+* `PShow`'s `pshow'` method is now available from the Prelude.
+* `PInner PPositive` is now `PNatural`, which allows the use of `pupcast` for
+  easier conversions 'upward'.
+* `pzero` and `pone` now have defaults based on `PInner`, similar to `#+`.
+
+## Removed
+
+* `pverifySignature`, due to deprecation. Replace any use of this with a more
+  specific signature verification builtin.  
+* `ptraceShowId`, `ptraceError`, `ptraceIfTrue`, `ptraceIfFalse`, and `ptrace` due to
+  deprecation. Replace any uses of these with the equivalent function specifying
+  a tracing level.
+* `punsafeConstant` due to deprecation. Replace any uses of it with `pconstant`
+  or `punsafeConstantInternal`.
 
 # 1.12.0 -- 07-11-2025
 

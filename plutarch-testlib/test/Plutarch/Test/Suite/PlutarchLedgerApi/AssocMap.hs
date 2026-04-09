@@ -21,10 +21,11 @@ import Plutarch.LedgerApi.Utils (pmaybeToMaybeData)
 import Plutarch.Maybe (pjust, pmapMaybe, pnothing)
 import Plutarch.Prelude
 import Plutarch.Test.Bench (bcompareWithin, bench)
+import Plutarch.Test.Golden (goldenEval, plutarchGolden)
 import Plutarch.Test.Laws (checkLedgerPropertiesAssocMap)
 import Plutarch.Test.QuickCheck (checkHaskellEquivalent2, propEval, propEvalEqual)
 import Plutarch.Test.Unit (testEvalEqual)
-import Plutarch.Test.Utils (fewerTests, prettyEquals, prettyShow)
+import Plutarch.Test.Utils (fewerTests, precompileTerm, prettyEquals, prettyShow)
 import Plutarch.Unsafe (punsafeCoerce)
 import PlutusLedgerApi.V1.Orphans (UnsortedAssocMap, getUnsortedAssocMap)
 import PlutusTx.AssocMap qualified as PlutusMap
@@ -168,6 +169,17 @@ tests =
   testGroup
     "AssocMap"
     [ checkLedgerPropertiesAssocMap
+    , plutarchGolden
+        "PValidateData"
+        "assoc-map-validate-data"
+        [ goldenEval "PSortedMap" $
+            pparseData @(PSortedMap PInteger PInteger) $
+              precompileTerm $
+                pforgetData $
+                  pdata $
+                    AssocMap.psortedMapFromFoldable @PInteger @PInteger @[]
+                      [(0, 1), (1, 2)]
+        ]
     , testGroup
         "pcheckBinRel"
         [ testEvalEqual
@@ -199,18 +211,18 @@ tests =
             (pconstant @PBool True)
         ]
     , propEval "Ledger AssocMap is sorted (sanity check for punsafeCoerce below)" $
-        \(m :: PlutusMap.Map Integer Integer) -> AssocMap.passertSorted # pconstant @(PUnsortedMap PInteger PInteger) m
+        \(m :: PlutusMap.Map Integer Integer) -> AssocMap.ppromoteToSortedMap # pconstant @(PUnsortedMap PInteger PInteger) m
     , adjustOption (fewerTests 4) $
-        propEval "passertSorted . psortedMapFromFoldable" $
+        propEval "ppromoteToSortedMap . psortedMapFromFoldable" $
           \(m :: UnsortedAssocMap Integer Integer) ->
-            papp AssocMap.passertSorted . AssocMap.pforgetSorted $
+            papp AssocMap.ppromoteToSortedMap . AssocMap.pforgetSorted $
               AssocMap.psortedMapFromFoldable @PInteger @PInteger
                 (map (bimap pconstant pconstant) $ PlutusMap.toList $ getUnsortedAssocMap m)
     , testProperty "null = pnull" $ checkHaskellUnsortedPMapEquivalent PlutusMap.null AssocMap.pnull
     , testProperty "lookup = plookup" $
         checkHaskellUnsortedPMapEquivalent2
           PlutusMap.lookup
-          (plam $ \k m -> pmaybeToMaybeData #$ AssocMap.plookup # k # m)
+          (plam $ \k m -> pmaybeToMaybeData #$ AssocMap.plookup # k # AssocMap.punsafeCoerceToSortedMap m)
     , testProperty "lookup = plookupData" $
         checkHaskellUnsortedPMapEquivalent2
           PlutusMap.lookup
@@ -219,7 +231,7 @@ tests =
                 #$ (pmapMaybe # plam pfromData)
                 #$ AssocMap.plookupData
                 # pdata k
-                # m
+                # AssocMap.punsafeCoerceToSortedMap m
           )
     , testProperty "singleton = psingleton" $
         checkHaskellEquivalent2 @PInteger @PInteger @(PUnsortedMap PInteger PInteger)
@@ -237,7 +249,7 @@ tests =
                 ( AssocMap.pfoldlWithKey
                     # plam (\acc k v -> acc + k + v)
                     # pconstant a
-                    # (AssocMap.passertSorted # pconstant @(PUnsortedMap PInteger PInteger) m)
+                    # pconstant @(PUnsortedMap PInteger PInteger) m
                 )
     , testProperty "all = pall" $
         checkHaskellUnsortedPMapEquivalent (PlutusMap.all even) (AssocMap.pall # peven)
@@ -248,8 +260,9 @@ tests =
           (\(k, v) m -> PlutusMap.insert k v m)
           ( plam
               ( \kv m ->
-                  AssocMap.pforgetSorted $
-                    AssocMap.pinsert # (pfstBuiltin # kv) # (psndBuiltin # kv) # m
+                  pmatch kv $ \(PBuiltinPair k v) ->
+                    AssocMap.pforgetSorted $
+                      AssocMap.pinsert # k # v # m
               )
           )
     , testProperty "delete = pdelete" $

@@ -28,7 +28,7 @@ import Plutarch.Builtin.BLS (
   PBuiltinBLS12_381_G2_Element,
   PBuiltinBLS12_381_MlResult,
  )
-import Plutarch.Builtin.Bool (PBool (PFalse, PTrue), pfalse, pif', ptrue)
+import Plutarch.Builtin.Bool (PBool (PFalse, PTrue), pfalse, ptrue)
 import Plutarch.Builtin.ByteString (
   PByte,
   PByteString,
@@ -40,17 +40,14 @@ import Plutarch.Builtin.Data (
   PBuiltinList (PCons, PNil),
   PBuiltinPair (PBuiltinPair),
   PData (PData),
-  pchooseListBuiltin,
   pconsBuiltin,
-  pfstBuiltin,
-  pheadBuiltin,
-  psndBuiltin,
-  ptailBuiltin,
  )
 import Plutarch.Builtin.Integer (PInteger)
-import Plutarch.Builtin.Opaque (POpaque (POpaque))
+import Plutarch.Builtin.Opaque (POpaque (POpaque), popaque)
 import Plutarch.Builtin.String (PString, ptraceInfo)
 import Plutarch.Builtin.Unit (PUnit (PUnit), punit)
+import Plutarch.Internal.Case (punsafeCase)
+import Plutarch.Internal.PLam (plam)
 
 import Data.Kind (Constraint, Type)
 import Data.Proxy (Proxy (Proxy))
@@ -80,9 +77,7 @@ import Plutarch.Internal.Quantification (PFix (PFix), PForall (PForall), PSome (
 import Plutarch.Internal.Term (
   S,
   Term,
-  pdelay,
   perror,
-  pforce,
   plam',
   plet,
   punsafeCoerce,
@@ -98,12 +93,14 @@ type family PInnermost' (a :: S -> Type) (b :: S -> Type) :: S -> Type where
 
 type PInnermost a = PInnermost' (PInner a) a
 
+{-# DEPRECATED PlutusTypeStrat "Use the new mechanisms instead" #-}
 class PlutusTypeStrat (strategy :: Type) where
   type PlutusTypeStratConstraint strategy :: (S -> Type) -> Constraint
   type DerivedPInner strategy (a :: S -> Type) :: S -> Type
   derivedPCon :: forall a s. (DerivePlutusType a, DPTStrat a ~ strategy) => a s -> Term s (DerivedPInner strategy a)
   derivedPMatch :: forall a s b. (DerivePlutusType a, DPTStrat a ~ strategy) => Term s (DerivedPInner strategy a) -> (a s -> Term s b) -> Term s b
 
+{-# DEPRECATED DerivePlutusType "Use the new mechanisms instead" #-}
 class
   ( PInner a ~ DerivedPInner (DPTStrat a) a
   , PlutusTypeStrat (DPTStrat a)
@@ -229,10 +226,10 @@ instance PlutusType (DeriveFakePlutusType a) where
 
   -- This breaks without type signature because of (s :: S) needs to be bind.
   pcon' :: forall s. DeriveFakePlutusType a s -> Term s (PInner (DeriveFakePlutusType a))
-  pcon' _ = error "Attepted to use a type derived with DeriveFakePlutusType"
+  pcon' _ = error "Attempted to use a type derived with DeriveFakePlutusType"
 
   pmatch' :: forall s b. Term s (PInner (DeriveFakePlutusType a)) -> (DeriveFakePlutusType a s -> Term s b) -> Term s b
-  pmatch' _ _ = error "Attepted to use a type derived with DeriveFakePlutusType"
+  pmatch' _ _ = error "Attempted to use a type derived with DeriveFakePlutusType"
 
 --------------------------------------------------------------------------------
 
@@ -247,10 +244,11 @@ instance PlutusType POpaque where
 instance PlutusType PBool where
   type PInner PBool = PBool
   {-# INLINEABLE pcon' #-}
-  pcon' PTrue = ptrue
-  pcon' PFalse = pfalse
+  pcon' = \case
+    PTrue -> ptrue
+    PFalse -> pfalse
   {-# INLINEABLE pmatch' #-}
-  pmatch' b f = pforce $ pif' # b # pdelay (f PTrue) # pdelay (f PFalse)
+  pmatch' b f = punsafeCase b [popaque . f $ PFalse, popaque . f $ PTrue]
 
 instance PlutusType PData where
   type PInner PData = PData
@@ -269,18 +267,14 @@ you should /not/ use 'pcon' for 'PBuiltinPair'.
 instance PlutusType (PBuiltinPair a b) where
   type PInner (PBuiltinPair a b) = PBuiltinPair a b
   pcon' _ = ptraceInfo "Do not use pcon for PBuiltinPair; instead, use ppairDataBuiltin or pconstant" perror
-  pmatch' t f = f (PBuiltinPair (pfstBuiltin # t) (psndBuiltin # t))
+  pmatch' t f = punsafeCase t [popaque . plam $ \x y -> f (PBuiltinPair x y)]
 
 instance PLC.Contains PLC.DefaultUni (PlutusRepr a) => PlutusType (PBuiltinList a) where
   type PInner (PBuiltinList a) = PBuiltinList a
-  pcon' (PCons x xs) = pconsBuiltin # x # xs
-  pcon' PNil = getPLifted $ unsafeHaskToUni @[PlutusRepr a] []
-  pmatch' xs' f = plet xs' $ \xs ->
-    pforce $
-      pchooseListBuiltin
-        # xs
-        # pdelay (f PNil)
-        # pdelay (f (PCons (pheadBuiltin # xs) (ptailBuiltin # xs)))
+  pcon' = \case
+    PCons x xs -> pconsBuiltin # x # xs
+    PNil -> getPLifted $ unsafeHaskToUni @[PlutusRepr a] []
+  pmatch' xs f = punsafeCase xs [popaque . plam $ \y ys -> f (PCons y ys), popaque . f $ PNil]
 
 instance PIsData a => PlutusType (PAsData a) where
   type PInner (PAsData a) = PData

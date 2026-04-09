@@ -23,6 +23,8 @@ module Plutarch.Builtin.Bool (
 ) where
 
 import Data.Kind (Type)
+import Plutarch.Builtin.Opaque (popaque)
+import Plutarch.Internal.Case (punsafeCase)
 import {-# SOURCE #-} Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.Term (
   PDelayed,
@@ -64,6 +66,7 @@ pbuiltinIfThenElse = punsafeBuiltin PLC.IfThenElse
 
 @since 1.10.0
 -}
+{-# DEPRECATED pif' "Use pif instead" #-}
 pif' ::
   forall (a :: S -> Type) (s :: S).
   Term s (PBool :--> a :--> a :--> a)
@@ -79,8 +82,7 @@ pif ::
   Term s a ->
   Term s a ->
   Term s a
-pif cond ifT ifF =
-  pforce $ pif' # cond # pdelay ifT # pdelay ifF
+pif cond ifT ifF = punsafeCase cond [popaque ifF, popaque ifT]
 
 {- | Boolean negation.
 
@@ -89,8 +91,8 @@ pif cond ifT ifF =
 pnot ::
   forall (s :: S).
   Term s (PBool :--> PBool)
-pnot = phoistAcyclic $ plam $ \x ->
-  pif' # x # pfalse # ptrue
+pnot = phoistAcyclic $ plam $ \b ->
+  pif b pfalse ptrue
 
 {- | Lazy AND for terms.
 
@@ -115,28 +117,28 @@ infixr 2 #||
 @since 1.10.0
 -}
 pand :: forall (s :: S). Term s (PBool :--> PDelayed PBool :--> PDelayed PBool)
-pand = phoistAcyclic $ plam $ \x y -> pif' # x # y # phoistAcyclic (pdelay pfalse)
+pand = phoistAcyclic $ plam $ \x y -> pdelay $ pif x (pforce y) x
 
 {- | As 'pand', but strict.
 
 @since 1.10.0
 -}
 pand' :: forall (s :: S). Term s (PBool :--> PBool :--> PBool)
-pand' = phoistAcyclic $ plam $ \x y -> pif' # x # y # pfalse
+pand' = phoistAcyclic $ plam $ \x y -> pif x y x
 
 {- | Hoisted lazy OR at the Plutarch level.
 
 @since 1.10.0
 -}
 por :: forall (s :: S). Term s (PBool :--> PDelayed PBool :--> PDelayed PBool)
-por = phoistAcyclic $ plam $ \x -> pif' # x # phoistAcyclic (pdelay ptrue)
+por = phoistAcyclic $ plam $ \x -> pif x (phoistAcyclic (pdelay ptrue))
 
 {- | As 'por', but strict.
 
 @since 1.10.0
 -}
 por' :: Term s (PBool :--> PBool :--> PBool)
-por' = phoistAcyclic $ plam $ \x -> pif' # x # ptrue
+por' = phoistAcyclic $ plam $ \x -> pif x ptrue
 
 {- | Essentially multi-way 'pif'. More precisely, given a list of
 condition-action pairs, and an \'action of last resort\', construct a

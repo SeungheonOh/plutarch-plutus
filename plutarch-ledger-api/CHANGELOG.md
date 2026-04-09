@@ -4,6 +4,62 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+## 3.6.0 -- 04/03/2025 
+
+### Added
+
+* `SOP.Generic` derivations for `PDatum`, `PRedeemer`.
+* Missing `PValidateData` instances for plutarch-ledger-api types.
+* `phasZeroTokenQuantities`, `phasAdaEntry`, and `phasZeroAdaEntry` functions
+  to `Plutarch.LedgerApi.Value`. 
+* The following functions have been added to `Plutarch.LedgerApi.V3.Contexts`:
+  `pfindOwnInput`, `pfindContinuingOutputs`, `ptxSignedBy`, `ppubKeyOutputsAt`,
+  `pvaluePaidTo`, `pvalueSpent`, `pvalueProduced`, `pownCurrencySymbol`, and
+  `pspendsOutput`.
+
+### Changed
+
+* Replaced all internal uses of `pfixHoisted` with `pfix` for improved
+  performance, at the cost of a negligible increase in script size in some
+  cases.
+* Exposed definitions from the `Plutarch.LedgerApi.V1.MintValue` and
+  `Plutarch.LedgerApi.V3.MintValue` modules.
+* Lookup-related functions now operate only on **sorted** assoc maps.
+    * Affected functions: `plookup`, `plookupData`, `plookupDataWith`,
+      `pfindWithDefault`, `pfoldAt`, `pfoldAtData`, `ptryLookup`,
+      and `pvalueOf`.
+    * Since unsorted maps may contain duplicate keys, lookups can be unreliable,
+      i.e. return only the value for the first matching key, ignoring other
+      duplicates.
+* In `Plutarch.LedgerApi.AssocMap`, `passertSorted` has been deprecated in favor
+  of `ppromoteToSortedMap`.
+* In `Plutarch.LedgerApi.Value`, `passertSorted` has been deprecated in favor
+  of `ppromoteToSortedValue`.
+* `PSortedMap` and all sorted Value types now disallow duplicate keys.
+* `pfindInputByOutRef` has been renamed to `pfindTxInByTxOutRef`, its
+  signature updated to match the corresponding `plutus-ledger-api` definition,
+  and the function has been moved to `Plutarch.LedgerApi.V3.Contexts`. 
+* `pparseDatum` and `pgetContinuingOutputs` have been moved to
+  `Plutarch.LedgerApi.V3.Contexts`.
+* The signature of `pgetContinuingOutputs` has also been updated to align with
+  the corresponding definition in `plutus-ledger-api`.
+* In `Plutarch.LedgerApi.AssocMap`, `pfoldMapWithKey` and `pfoldlWithKey`
+  functions now accept `PUnsortedMap` instead of `PSortedMap`, making them more
+  generic.
+* In `Plutarch.LedgerApi.Interval`, renamed `palways` to `punbounded`. 
+* Fields for `PInterval` have been renamed to remove a typo.
+
+### Removed
+
+* `DerivePlutusType` instance for `PPosixTime`, `PDatum`, `PRedeemer` as 
+  `DerivePlutusType` is deprecated now. 
+
+### Fixed
+
+* Restored the `POrd` instance for `PCredential`
+
 ## 3.5.0 -- 07/11/2025
 
 ### Added

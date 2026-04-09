@@ -1,8 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
 
-module Plutarch.DataRepr.Internal.Field (
+module Plutarch.DataRepr.Internal.Field
+  {-# DEPRECATED "Use the new mechanism instead" #-} (
   -- * PDataField class & deriving utils
   PDataFields (..),
   pletFields,
@@ -20,7 +22,6 @@ module Plutarch.DataRepr.Internal.Field (
   -- * Re-exports
   HRec (..),
   Labeled (Labeled, unLabeled),
-  hrecField,
 ) where
 
 import Data.Kind (Constraint, Type)
@@ -45,16 +46,15 @@ import Plutarch.DataRepr.Internal.FromData (PFromDataable, pmaybeFromAsData)
 import Plutarch.DataRepr.Internal.HList (
   HRec (HCons, HNil),
   Labeled (Labeled, unLabeled),
-  hrecField,
   type Drop,
   type ElemOf,
   type IndexLabel,
   type IndexList,
  )
 import Plutarch.Internal.IsData (PIsData, pfromData)
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (PInner)
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (S, Term, plet, (#), (:-->))
 import Plutarch.Internal.TermCont (TermCont (TermCont), runTermCont)
 import Plutarch.Internal.Witness (witness)
@@ -195,12 +195,13 @@ type family BoundTerms ps bs s where
   BoundTerms ((name ':= p) ': ps) ('Bind ': bs) s = '(name, Term s (PAsData p)) ': BoundTerms ps bs s
 
 class BindFields (ps :: [PLabeledType]) (bs :: [ToBind]) where
-  -- |
-  --    Bind all the fields in a 'PDataList' term to a corresponding
-  --    HList of Terms.
-  --
-  --    A continuation is returned to enable sharing of
-  --    the generated bound-variables.
+  {- |
+   Bind all the fields in a 'PDataList' term to a corresponding
+   HList of Terms.
+
+   A continuation is returned to enable sharing of
+   the generated bound-variables.
+  -}
   bindFields :: Proxy bs -> Term s (PDataRecord ps) -> TermCont s (HRec (BoundTerms ps bs s))
 
 instance {-# OVERLAPPABLE #-} BindFields ((l ':= p) ': ps) ('Bind ': '[]) where

@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               plutarch
-version:            1.12.0
+version:            1.14.0
 author:
   Las Safin <me@las.rs>, Koz Ross <koz@mlabs.city>, Seungheon Oh <seungheon.oh@mlabs.city>, Philip DiSarro <philipdisarro@gmail.com>
 
@@ -95,6 +95,7 @@ library
     Plutarch.Either
     Plutarch.Enum
     Plutarch.Evaluate
+    Plutarch.Internal.Case
     Plutarch.Internal.Eq
     Plutarch.Internal.Evaluate
     Plutarch.Internal.Fix
@@ -137,7 +138,6 @@ library
     Plutarch.Repr.Data
     Plutarch.Repr.Derive
     Plutarch.Repr.Internal
-    Plutarch.Repr.Newtype
     Plutarch.Repr.Scott
     Plutarch.Repr.SOP
     Plutarch.Repr.Tag
@@ -158,12 +158,14 @@ library
     , hashable
     , lens
     , mtl
-    , plutus-core           >=1.51.0.0
+    , plutus-core           ==1.60.0.0
     , plutus-ledger-api
     , plutus-tx
     , prettyprinter
     , QuickCheck
+    , quickcheck-instances
     , random
+    , semialign
     , sop-core
     , unordered-containers
     , vector

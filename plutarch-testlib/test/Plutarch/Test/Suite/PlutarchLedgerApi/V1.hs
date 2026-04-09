@@ -1,6 +1,8 @@
 module Plutarch.Test.Suite.PlutarchLedgerApi.V1 (tests) where
 
 import Data.Kind (Type)
+import Plutarch.Evaluate (evalTerm')
+import Plutarch.Internal.Term (Config (NoTracing))
 import Plutarch.LedgerApi.V1 qualified as PLA
 import Plutarch.LedgerApi.Value qualified as Value
 import Plutarch.Prelude
@@ -13,10 +15,18 @@ import Plutarch.Test.Laws (
   checkPAdditiveMonoidLaws,
   checkPAdditiveSemigroupLaws,
  )
+import Plutarch.Test.Methods (
+  ppredecessorNBetter,
+  pscaleIntegerBetter,
+  pscaleNaturalBetter,
+  pscalePositiveBetter,
+  psuccessorNBetter,
+ )
 import Plutarch.Test.QuickCheck (propPTryFromRoundrip)
 import Plutarch.Test.Suite.PlutarchLedgerApi.V1.Interval qualified as Interval
 import Plutarch.Test.Suite.PlutarchLedgerApi.V1.Value qualified as Value
 import Plutarch.Test.Utils (fewerTests, typeName)
+import Plutarch.Unsafe (punsafeCoerce)
 import PlutusLedgerApi.V1.Orphans ()
 import Test.Tasty (TestTree, adjustOption, testGroup)
 
@@ -44,6 +54,7 @@ tests =
         (typeName @(S -> Type) @PLA.PCredential)
         [ checkLedgerProperties @PLA.PCredential
         , propPTryFromRoundrip @PLA.PCredential
+        , checkHaskellOrdEquivalent @PLA.PCredential
         ]
     , testGroup
         (typeName @(S -> Type) @PLA.PStakingCredential)
@@ -74,6 +85,11 @@ tests =
         , checkPAdditiveMonoidLaws @PLA.PPosixTime
         , checkPAdditiveGroupLaws @PLA.PPosixTime
         , propPTryFromRoundrip @PLA.PPosixTime
+        , psuccessorNBetter (punsafeCoerce @_ @PInteger 10) (evalTerm' NoTracing $ PLA.pposixTime 2000)
+        , ppredecessorNBetter (punsafeCoerce @_ @PInteger 10) (evalTerm' NoTracing $ PLA.pposixTime 2000)
+        , pscalePositiveBetter (evalTerm' NoTracing $ PLA.pposixTime 2000) (punsafeCoerce @_ @PInteger 10)
+        , pscaleNaturalBetter (evalTerm' NoTracing $ PLA.pposixTime 2000) (punsafeCoerce @_ @PInteger 10)
+        , pscaleIntegerBetter (evalTerm' NoTracing $ PLA.pposixTime 2000) 10
         ]
     , -- We only care about intervals of PPosixTime, so we don't check anything else
       testGroup

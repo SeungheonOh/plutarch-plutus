@@ -27,35 +27,37 @@ import Plutarch.Builtin.Bool (PBool, pif)
 import Plutarch.Builtin.ByteString (PByteString)
 import Plutarch.Builtin.Data (
   PAsData,
-  PBuiltinList,
-  PBuiltinPair,
+  PBuiltinList (PCons, PNil),
+  PBuiltinPair (PBuiltinPair),
   PData,
   pasByteStr,
   pasConstr,
   pasInt,
   pasList,
-  pchooseListBuiltin,
-  pfstBuiltin,
+  pasMap,
   pheadBuiltin,
-  psndBuiltin,
-  ptailBuiltin,
+  pheadTailBuiltin,
  )
-import Plutarch.Builtin.Integer (PInteger, pconstantInteger)
-import Plutarch.Internal.Eq ((#==))
-import Plutarch.Internal.Fix (pfixHoisted)
-import Plutarch.Internal.IsData (PIsData)
-import Plutarch.Internal.Lift (pconstant)
-import Plutarch.Internal.Ord ((#<), (#>=))
+import Plutarch.Builtin.Integer (PInteger)
+import Plutarch.Builtin.Opaque (POpaque, popaque)
+import Plutarch.Internal.Case (punsafeCase)
+import Plutarch.Internal.Fix (pfix)
+import Plutarch.Internal.IsData (PIsData, pfromData)
+import Plutarch.Internal.Numeric (PPositive)
+import Plutarch.Internal.Ord ((#<=))
 import Plutarch.Internal.PLam (plam)
-import Plutarch.Internal.PlutusType (PlutusType (PInner, pcon', pmatch'))
+import Plutarch.Internal.PlutusType (
+  PlutusType (PInner, pcon', pmatch'),
+  pmatch,
+ )
 import Plutarch.Internal.Term (
   S,
   Term,
   perror,
   phoistAcyclic,
   plet,
+  punsafeCoerce,
   (#),
-  (#$),
   (:-->),
  )
 import Plutarch.Repr.Data (
@@ -65,7 +67,6 @@ import Plutarch.Repr.Data (
  )
 import Plutarch.Repr.Internal (UnTermRec, UnTermStruct)
 import Plutarch.Repr.Tag (DeriveAsTag)
-import Plutarch.Unsafe (punsafeCoerce)
 
 {- | Describes a @Data@ encoded Plutarch type that requires some additional
 validation to ensure its structure is indeed what we expect. This is
@@ -140,6 +141,15 @@ deriving via (Don'tValidate PData) instance PValidateData PData
 instance PValidateData PInteger where
   pwithValidated opq = plet (pasInt # opq) . const
 
+{- | Checks that we have a positive @I@.
+
+@since 1.13.0
+-}
+instance PValidateData PPositive where
+  pwithValidated opq x =
+    plet (pfromData $ pparseData @PInteger opq) $ \n ->
+      pif (n #<= 0) perror x
+
 {- | Checks that we have a @B@.
 
 @since 1.12.0
@@ -153,15 +163,16 @@ second field of @Constr@ is not checked at all.
 @since 1.12.0
 -}
 instance PValidateData PBool where
-  pwithValidated opq x = plet (pfstBuiltin #$ pasConstr # opq) $ \i ->
-    pif
-      (i #== pconstantInteger 0)
-      x
-      ( pif
-          (i #== pconstantInteger 1)
-          x
-          perror
-      )
+  -- Note (Koz, 24/11/2025): This slightly weird implementation relies on `Case`
+  -- over `Integer` treating the first 'arm' of the match as `0`, the second as
+  -- `1`, and so on. Since we error on anything other than those two, we can use
+  -- this for speed.
+  pwithValidated opq x =
+    punsafeCase
+      (pmatch (pasConstr # opq) $ \(PBuiltinPair i _) -> i)
+      [ popaque x
+      , popaque x
+      ]
 
 {- | Checks that we have a @Constr@ with a second field of at least length 2.
 Furthermore, checks that the first element validates as per @a@, while the
@@ -170,9 +181,9 @@ second element validates as per @b@. The @Constr@ tag is not checked at all.
 @since 1.12.0
 -}
 instance (PValidateData a, PValidateData b) => PValidateData (PBuiltinPair (PAsData a) (PAsData b)) where
-  pwithValidated opq x = plet (psndBuiltin #$ pasConstr # opq) $ \p ->
-    plet (pheadBuiltin # p) $ \fstOne ->
-      plet (pheadBuiltin #$ ptailBuiltin # p) $ \sndOne ->
+  pwithValidated opq x = pmatch (pasConstr # opq) $ \(PBuiltinPair _ p) ->
+    pheadTailBuiltin p $ \fstOne rest ->
+      plet (pheadBuiltin # rest) $ \sndOne ->
         pwithValidated @a fstOne . pwithValidated @b sndOne $ x
 
 {- | Checks that we have a @Constr@ with a second field of at least length 2.
@@ -181,18 +192,18 @@ The @Constr@ tag, or the elements, are not checked at all.
 @since 1.12.0
 -}
 instance PValidateData (PBuiltinPair PData PData) where
-  pwithValidated opq x = plet (psndBuiltin #$ pasConstr # opq) $ \p ->
-    plet (pheadBuiltin # p) $ \_ ->
-      plet (pheadBuiltin #$ ptailBuiltin # p) $ const x
+  pwithValidated opq x = pmatch (pasConstr # opq) $ \(PBuiltinPair _ p) ->
+    pheadTailBuiltin p $ \_ rest ->
+      plet (pheadBuiltin # rest) $ const x
 
 {- | Checks that we have a @List@. Furthermore, checks that every element
 validates as per @a@.
 
 @since 1.12.0
 -}
-instance PValidateData a => PValidateData (PBuiltinList (PAsData a)) where
+instance {-# OVERLAPPABLE #-} PValidateData a => PValidateData (PBuiltinList a) where
   pwithValidated opq x = plet (pasList # opq) $ \ell ->
-    phoistAcyclic (pfixHoisted #$ plam go) # ell # x
+    phoistAcyclic (pfix $ plam . go) # ell # x
     where
       go ::
         forall (r :: S -> Type) (s :: S).
@@ -200,9 +211,35 @@ instance PValidateData a => PValidateData (PBuiltinList (PAsData a)) where
         Term s (PBuiltinList PData) ->
         Term s r ->
         Term s r
-      go self ell done = pchooseListBuiltin # ell # done #$ plet (pheadBuiltin # ell) $ \h ->
-        plet (ptailBuiltin # ell) $ \t ->
-          self # t # pwithValidated @a h done
+      go self ell done = pmatch ell $ \case
+        PNil -> done
+        PCons h t -> self # t # pwithValidated @a h done
+
+{- | Checks that we have a @Map@. Furthermore, checks that every key-value pair
+validates as per @a@ and @b@. Takes precedence over the overlapping
+@PValidateData (PBuiltinList a)@ instance.
+
+@since 1.13.0
+-}
+instance
+  {-# OVERLAPPING #-}
+  (PValidateData a, PValidateData b) =>
+  PValidateData (PBuiltinList (PBuiltinPair (PAsData a) (PAsData b)))
+  where
+  pwithValidated opq x = plet (pasMap # opq) $ \mp ->
+    phoistAcyclic (pfix $ plam . go) # mp # x
+    where
+      go ::
+        forall (r :: S -> Type) (s :: S).
+        Term s (PBuiltinList (PBuiltinPair PData PData) :--> r :--> r) ->
+        Term s (PBuiltinList (PBuiltinPair PData PData)) ->
+        Term s r ->
+        Term s r
+      go self mp done = pmatch mp $ \case
+        PNil -> done
+        PCons h t ->
+          pmatch h $ \(PBuiltinPair fst snd) ->
+            self # t # (pwithValidated @a fst . pwithValidated @b snd $ done)
 
 {- | Checks that we have a @List@.
 
@@ -222,17 +259,9 @@ instance PValidateData a => PValidateData (PAsData a) where
 -}
 instance SOP.Generic (a Any) => PValidateData (DeriveAsTag a) where
   {-# INLINEABLE pwithValidated #-}
-  pwithValidated opq x = plet (pasInt # opq) $ \i ->
+  pwithValidated opq x =
     let len = SOP.lengthSList @_ @(SOP.Code (a Any)) Proxy
-     in plet (pconstant @PInteger . fromIntegral $ len) $ \plen ->
-          pif
-            (i #< 0)
-            perror
-            ( pif
-                (i #>= plen)
-                perror
-                x
-            )
+     in punsafeCase (pasInt # opq) . replicate len . popaque $ x
 
 {- | Checks that we have a @List@, that it has (at least) enough elements for
 each field of @a@, and that each of those elements, in order, validates as
@@ -254,23 +283,20 @@ instance
   where
   {-# INLINEABLE pwithValidated #-}
   pwithValidated opq x = plet (pasList # opq) $ \ell ->
-    case SOP.shape @(S -> Type) @struct of
-      SOP.ShapeNil -> x
-      SOP.ShapeCons @ys @y restShape -> go @y ell restShape x
+    go ell (SOP.shape @(S -> Type) @struct) x
     where
       go ::
-        forall (a :: S -> Type) (w :: [S -> Type]) (s :: S) (r :: S -> Type).
-        (PValidateData a, SOP.All PValidateData w) =>
+        forall (w :: [S -> Type]) (s :: S) (r :: S -> Type).
+        SOP.All PValidateData w =>
         Term s (PBuiltinList PData) ->
         SOP.Shape w ->
         Term s r ->
         Term s r
-      go ell aShape =
-        pwithValidated @a (pheadBuiltin # ell) . case aShape of
-          -- We don't have any more elements of `ell` we care about, so nothing
-          -- else to do.
-          SOP.ShapeNil -> id
-          SOP.ShapeCons @ys @y restShape -> go @y (plet (ptailBuiltin # ell) id) restShape
+      go ell aShape x = case aShape of
+        SOP.ShapeNil -> x
+        SOP.ShapeCons @_ @y SOP.ShapeNil -> pwithValidated @y (pheadBuiltin # ell) x
+        SOP.ShapeCons @_ @y restShape -> pheadTailBuiltin ell $ \h t ->
+          pwithValidated @y h $ go t restShape x
 
 {- | Checks that we have a @Constr@, that its tag is in the range @[0, n - 1]@
 (where @n@ is the number of \'arms\' in the encoded sum type), and that there
@@ -291,50 +317,31 @@ instance
   where
   {-# INLINEABLE pwithValidated #-}
   pwithValidated opq x = plet (pasConstr # opq) $ \p ->
-    plet (pfstBuiltin # p) $ \ix ->
-      plet (psndBuiltin # p) $ \fields ->
-        case SOP.shape @[S -> Type] @struct of
-          outerShape ->
-            let numArms = SOP.lengthSList @[S -> Type] (Proxy @struct)
-                possibleMatches = pconstant @PInteger . fromIntegral <$> [0, 1 .. numArms - 1]
-             in goOuter ix fields outerShape possibleMatches x
+    pmatch p $ \(PBuiltinPair ix fields) ->
+      punsafeCase ix $ goOuter fields (SOP.shape @[S -> Type] @struct) x
     where
-      -- outerShape -> goOuter ix fields outerShape x
-
       goOuter ::
         forall (wOuter :: [[S -> Type]]) (s :: S) (r :: S -> Type).
         (SOP.SListI2 wOuter, SOP.All2 PValidateData wOuter) =>
-        Term s PInteger ->
         Term s (PBuiltinList PData) ->
         SOP.Shape wOuter ->
-        [Term s PInteger] ->
         Term s r ->
-        Term s r
-      goOuter ix ell outerShape = \case
-        -- We tried everything, and nothing matched the index.
-        [] -> const perror
-        (i : is) -> case outerShape of
-          -- Technically impossible
-          SOP.ShapeNil -> const perror
-          SOP.ShapeCons @ys @y restShape -> \arg ->
-            pif
-              (ix #== i)
-              ( case SOP.shape @(S -> Type) @y of
-                  SOP.ShapeNil -> arg
-                  SOP.ShapeCons @zs @z restInnerShape -> goInner @z ell restInnerShape arg
-              )
-              (goOuter ix ell restShape is arg)
+        [Term s POpaque]
+      goOuter ell outerShape x = case outerShape of
+        SOP.ShapeNil -> []
+        SOP.ShapeCons @_ @y restShape -> popaque (goInner ell (SOP.shape @_ @y) x) : goOuter ell restShape x
       goInner ::
-        forall (a :: S -> Type) (wInner :: [S -> Type]) (s :: S) (r :: S -> Type).
-        (PValidateData a, SOP.All PValidateData wInner) =>
+        forall (wInner :: [S -> Type]) (s :: S) (r :: S -> Type).
+        SOP.All PValidateData wInner =>
         Term s (PBuiltinList PData) ->
         SOP.Shape wInner ->
         Term s r ->
         Term s r
-      goInner ell aShape =
-        pwithValidated @a (pheadBuiltin # ell) . case aShape of
-          SOP.ShapeNil -> id
-          SOP.ShapeCons @ys @y restShape -> goInner @y (plet (ptailBuiltin # ell) id) restShape
+      goInner ell aShape x = case aShape of
+        SOP.ShapeNil -> x
+        SOP.ShapeCons @_ @y SOP.ShapeNil -> pwithValidated @y (pheadBuiltin # ell) x
+        SOP.ShapeCons @_ @y restShape -> pheadTailBuiltin ell $ \h t ->
+          pwithValidated @y h $ goInner t restShape x
 
 {- | Helper to define a do-nothing instance of 'PValidateData'. Useful when
 defining an instance for a complex type where we want to validate some parts,

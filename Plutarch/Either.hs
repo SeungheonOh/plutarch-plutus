@@ -36,17 +36,17 @@ import Generics.SOP qualified as SOP
 import Plutarch.Builtin.Bool (
   PBool (PFalse, PTrue),
   pif,
-  pif',
  )
 import Plutarch.Builtin.Data (
   PAsData,
+  PBuiltinPair (PBuiltinPair),
   PData,
   pasConstr,
   pconstrBuiltin,
-  pfstBuiltin,
-  psndBuiltin,
  )
-import Plutarch.Internal.Eq (PEq ((#==)))
+import Plutarch.Builtin.Opaque (popaque)
+import Plutarch.Internal.Case (punsafeCase)
+import Plutarch.Internal.Eq (PEq)
 import Plutarch.Internal.IsData (PIsData (pdataImpl, pfromDataImpl), pdata, pforgetData, pfromData)
 import Plutarch.Internal.Lift (
   DeriveDataPLiftable,
@@ -69,7 +69,6 @@ import Plutarch.Internal.Lift (
  )
 import Plutarch.Internal.ListLike (pcons, phead, pnil)
 import Plutarch.Internal.Ord (POrd (pmax, pmin, (#<), (#<=)))
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (
   PlutusType (PInner, pcon', pmatch'),
@@ -77,11 +76,13 @@ import Plutarch.Internal.PlutusType (
   pmatch,
  )
 import Plutarch.Internal.Show (PShow)
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   S,
   Term,
   phoistAcyclic,
   plet,
+  punsafeCoerce,
   (#),
   (#$),
   (:-->),
@@ -89,7 +90,6 @@ import Plutarch.Internal.Term (
 import Plutarch.Internal.TryFrom (PTryFrom)
 import Plutarch.Repr.SOP (DeriveAsSOPStruct (DeriveAsSOPStruct))
 import Plutarch.Trace (ptraceInfoError)
-import Plutarch.Unsafe (punsafeCoerce)
 import PlutusLedgerApi.V3 qualified as Plutus
 
 {- | SOP-encoded 'Either'.
@@ -209,19 +209,19 @@ instance
   {-# INLINEABLE pmax #-}
   pmax t1 t2 = pmatch t1 $ \case
     PDLeft t1' -> pmatch t2 $ \case
-      PDLeft t2' -> pif' # (pfromData t1' #< pfromData t2') # t2 # t1
+      PDLeft t2' -> pif (pfromData t1' #<= pfromData t2') t2 t1
       PDRight _ -> t2
     PDRight t1' -> pmatch t2 $ \case
       PDLeft _ -> t1
-      PDRight t2' -> pif' # (pfromData t1' #< pfromData t2') # t2 # t1
+      PDRight t2' -> pif (pfromData t1' #<= pfromData t2') t2 t1
   {-# INLINEABLE pmin #-}
   pmin t1 t2 = pmatch t1 $ \case
     PDLeft t1' -> pmatch t2 $ \case
-      PDLeft t2' -> pif' # (pfromData t1' #< pfromData t2') # t1 # t2
+      PDLeft t2' -> pif (pfromData t1' #<= pfromData t2') t1 t2
       PDRight _ -> t1
     PDRight t1' -> pmatch t2 $ \case
       PDLeft _ -> t2
-      PDRight t2' -> pif' # (pfromData t1' #< pfromData t2') # t1 # t2
+      PDRight t2' -> pif (pfromData t1' #<= pfromData t2') t1 t2
 
 -- | @since 1.10.0
 instance PlutusType (PEitherData a b) where
@@ -234,11 +234,12 @@ instance PlutusType (PEitherData a b) where
       pforgetData $ pconstrBuiltin # 1 #$ pcons # pforgetData t # pnil
   {-# INLINEABLE pmatch' #-}
   pmatch' t f = plet (pasConstr # t) $ \asConstr ->
-    plet (phead #$ psndBuiltin # asConstr) $ \arg ->
-      pif
-        ((pfstBuiltin # asConstr) #== 0)
-        (f . PDLeft . punsafeCoerce $ arg)
-        (f . PDRight . punsafeCoerce $ arg)
+    pmatch asConstr $ \(PBuiltinPair tag dat) ->
+      punsafeCase
+        tag
+        [ popaque . f . PDLeft . punsafeCoerce $ phead # dat
+        , popaque . f . PDRight . punsafeCoerce $ phead # dat
+        ]
 
 -- | @since 1.10.0
 deriving via

@@ -98,7 +98,7 @@ pfield :: Term s (PScriptContext :--> PScriptPurpose)
 
 > Note: When extracting several fields from the same variable, you should instead use `pletFields`. See: [Extracting fields](#all-about-extracting-fields)
 
-> Aside: `pfield` is actually return type polymorhpic. It could've returned either `PAsData PScriptPurpose` and `PScriptPurpose`. In this case, GHC correctly infers that we actually want a
+> Aside: `pfield` is actually return type polymorphic. It could've returned either `PAsData PScriptPurpose` and `PScriptPurpose`. In this case, GHC correctly infers that we actually want a
 > `PScriptPurpose`, since `pmatch` doesn't work on `PAsData PScriptPurpose`!
 
 > Sometimes GHC isn't so smart, and you're forced to provide an explicit type annotation. Or you can simply use `pfromData $ pfield ....`.

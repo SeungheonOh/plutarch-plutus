@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          plutarch-testlib
-version:       1.0.1
+version:       1.0.3
 license:       MIT
 data-files:    goldens/*.golden
 
@@ -92,6 +92,7 @@ library
     Plutarch.Test.Bench
     Plutarch.Test.Golden
     Plutarch.Test.Laws
+    Plutarch.Test.Methods
     Plutarch.Test.QuickCheck
     Plutarch.Test.SpecTypes
     Plutarch.Test.Unit
@@ -104,6 +105,7 @@ test-suite tests
   main-is:        Test.hs
   hs-source-dirs: test
   other-modules:
+    Plutarch.Test.Suite.Plutarch.Array
     Plutarch.Test.Suite.Plutarch.Bool
     Plutarch.Test.Suite.Plutarch.ByteString
     Plutarch.Test.Suite.Plutarch.DeriveAsTag
@@ -113,7 +115,9 @@ test-suite tests
     Plutarch.Test.Suite.Plutarch.List
     Plutarch.Test.Suite.Plutarch.Maybe
     Plutarch.Test.Suite.Plutarch.Monadic
+    Plutarch.Test.Suite.Plutarch.Numeric
     Plutarch.Test.Suite.Plutarch.Pair
+    Plutarch.Test.Suite.Plutarch.Parse
     Plutarch.Test.Suite.Plutarch.PLam
     Plutarch.Test.Suite.Plutarch.POrd
     Plutarch.Test.Suite.Plutarch.Positive
@@ -128,6 +132,7 @@ test-suite tests
     Plutarch.Test.Suite.Plutarch.Unroll
     Plutarch.Test.Suite.Plutarch.Uplc
     Plutarch.Test.Suite.PlutarchLedgerApi.AssocMap
+    Plutarch.Test.Suite.PlutarchLedgerApi.Parse
     Plutarch.Test.Suite.PlutarchLedgerApi.Regressions
     Plutarch.Test.Suite.PlutarchLedgerApi.Utils
     Plutarch.Test.Suite.PlutarchLedgerApi.V1
@@ -135,6 +140,7 @@ test-suite tests
     Plutarch.Test.Suite.PlutarchLedgerApi.V1.Value
     Plutarch.Test.Suite.PlutarchLedgerApi.V2
     Plutarch.Test.Suite.PlutarchLedgerApi.V3
+    Plutarch.Test.Suite.PlutarchLedgerApi.V3.Contexts
     Plutarch.Test.Suite.PlutarchLedgerApi.Value.AssetClass
 
   build-depends:
@@ -151,9 +157,11 @@ test-suite tests
     , plutus-tx
     , prettyprinter
     , QuickCheck
+    , quickcheck-instances
     , serialise
     , sop-core
     , tasty
+    , tasty-expected-failure
     , tasty-hunit
     , tasty-quickcheck
     , text

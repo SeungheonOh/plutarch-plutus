@@ -9,7 +9,7 @@ import Plutarch.Builtin.Bool (
   PBool,
   pand',
   pfalse,
-  pif',
+  pif,
   por',
   ptrue,
  )
@@ -27,8 +27,8 @@ import Plutarch.Builtin.Integer (
 import Plutarch.Builtin.Unit (PUnit)
 import Plutarch.Internal.Eq (PEq)
 import Plutarch.Internal.Lift (pconstant)
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PlutusType (PInner)
+import Plutarch.Internal.Subtype (pto)
 import Plutarch.Internal.Term (
   S,
   Term,
@@ -85,12 +85,12 @@ class PEq t => POrd t where
   -- | @since 1.10.0
   {-# INLINEABLE pmax #-}
   pmax :: forall (s :: S). Term s t -> Term s t -> Term s t
-  pmax x y = pif' # (x #<= y) # y # x
+  pmax x y = pif (x #<= y) y x
 
   -- | @since 1.10.0
   {-# INLINEABLE pmin #-}
   pmin :: forall (s :: S). Term s t -> Term s t -> Term s t
-  pmin x y = pif' # (x #<= y) # x # y
+  pmin x y = pif (x #<= y) x y
 
 infix 4 #<=
 infix 4 #<
@@ -119,9 +119,9 @@ infix 4 #>=
 
 instance POrd PBool where
   {-# INLINEABLE (#<) #-}
-  x #< y = pif' # x # pconstant False # y
+  x #< y = pif x (pconstant False) y
   {-# INLINEABLE (#<=) #-}
-  x #<= y = pif' # x # y # pconstant True
+  x #<= y = pif x y (pconstant True)
   {-# INLINEABLE pmin #-}
   pmin x y = pand' # x # y
   {-# INLINEABLE pmax #-}

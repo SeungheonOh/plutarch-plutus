@@ -1,7 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE NoPartialTypeSignatures #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-
 -- | @since 1.12.0
 module Plutarch.Array (
   -- * Type
@@ -32,7 +28,8 @@ module Plutarch.Array (
   -- ** Elimination
 
   -- *** Folds
-  pfoldlArray,
+  pfoldArray,
+  prfoldArray,
 
   -- *** Conversions
   ppullArrayToList,
@@ -55,14 +52,11 @@ import Plutarch.Internal.Numeric (
   PAdditiveSemigroup (pscalePositive, (#+)),
   PMultiplicativeSemigroup (ppowPositive, (#*)),
   PNatural,
-  PPositive,
-  pzero,
   (#-),
  )
-import Plutarch.Internal.Ord (POrd ((#<=)))
+import Plutarch.Internal.Ord (POrd ((#<=)), pmin)
 import Plutarch.Internal.PLam (plam)
 import Plutarch.Internal.PlutusType (PlutusType (PInner, pcon', pmatch'), pcon, pmatch)
-import Plutarch.Internal.Quantification (PForall (PForall))
 import Plutarch.Internal.Subtype (pupcast)
 import Plutarch.Internal.Term (
   S,
@@ -90,23 +84,51 @@ a lambda onchain.
 @since 1.12.0
 -}
 newtype PPullArray (a :: S -> Type) (s :: S)
-  = PPullArray (PForall (PArrOf a) s)
+  = PPullArray (forall (r :: S -> Type). Term s ((PNatural :--> (PInteger :--> a) :--> r) :--> r))
 
--- | @since 1.12.0
+-- | @since 1.13.0
 instance PlutusType (PPullArray a) where
-  type PInner (PPullArray a) = PForall (PArrOf a)
-  pcon' (PPullArray t) = pcon t
-  pmatch' t f = pmatch t $ \t' -> f (PPullArray t')
+  type PInner (PPullArray a) = PPullArray a
+  pcon' (PPullArray t) = punsafeCoerce t
+  pmatch' x f = f (PPullArray $ punsafeCoerce x)
 
 -- | @since 1.12.0
 instance PAdditiveSemigroup a => PAdditiveSemigroup (PPullArray a) where
-  arr1 #+ arr2 = pzipWithArray padd arr1 arr2
-  pscalePositive arr p = pmapArray (pscaleBy # p) arr
+  (#+) = pzipWithArray (plam (#+))
+  pscalePositive arr p = pmapArray (plam $ \x -> pscalePositive x p) arr
 
 -- | @since 1.12.0
 instance PMultiplicativeSemigroup a => PMultiplicativeSemigroup (PPullArray a) where
-  arr1 #* arr2 = pzipWithArray pmul arr1 arr2
-  ppowPositive arr p = pmapArray (ppowBy # p) arr
+  (#*) = pzipWithArray (plam (#*))
+  ppowPositive arr p = pmapArray (plam $ \x -> ppowPositive x p) arr
+
+{- | Given a length @n@, construct the pull array equivalent of @[0, 1, ... n -
+1]@.
+
+\(Theta(1)\) space and time complexity.
+
+@since 1.12.0
+-}
+piota :: forall (s :: S). Term s PNatural -> Term s (PPullArray PNatural)
+piota n = pcon $ PPullArray $ plam $ \k -> k # n # go
+  where
+    go :: forall (s' :: S). Term s' (PInteger :--> PNatural)
+    go = phoistAcyclic $ plam $ \x -> punsafeCoerce x
+
+{- | Given a length and a function from indexes to values, construct the pull
+array of that length, each of whose indexes stores the value computed by that
+function.
+
+\(Theta(1)\) space and time complexity.
+
+@since 1.12.0
+-}
+pgenerate ::
+  forall (a :: S -> Type) (s :: S).
+  Term s PNatural ->
+  Term s (PInteger :--> a) ->
+  Term s (PPullArray a)
+pgenerate len f = pcon $ PPullArray $ plam $ \k -> k # len # f
 
 {- | Given a builtin array, construct the equivalent pull array.
 
@@ -118,8 +140,8 @@ pfromArray ::
   forall (a :: S -> Type) (s :: S).
   Term s (PArray a) ->
   Term s (PPullArray a)
-pfromArray arr = pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-  k # punsafeCoerce (plengthOfArray # arr) # (pindexArray # arr)
+pfromArray arr = pcon $ PPullArray $ plam $ \k ->
+  k # punsafeCoerce (plengthOfArray # arr) #$ pindexArray # arr
 
 {- | Given a builtin list, construct the equivalent pull array. Uses
 'plistToArray' internally.
@@ -134,66 +156,6 @@ pfromList ::
   Term s (PPullArray a)
 pfromList ell = pfromArray (plistToArray # ell)
 
-{- | Given a size limit \(k\) and a pull array of length \(n\), construct a new
-pull array that consists of the first \(\min \{k, n\}\) elements of the
-argument pull array, at the same indexes.
-
-\(\Theta(1)\) space and time complexity.
-
-@since 1.12.0
--}
-ptakeArray ::
-  forall (a :: S -> Type) (s :: S).
-  Term s PNatural ->
-  Term s (PPullArray a) ->
-  Term s (PPullArray a)
-ptakeArray limit arr = pmatch arr $ \(PPullArray (PForall f)) ->
-  pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-    punsafeCoerce f # plam (\len g -> k # pmin limit len # g)
-
--- | @since 1.12.0
-pdropArray ::
-  forall (a :: S -> Type) (s :: S).
-  Term s PNatural ->
-  Term s (PPullArray a) ->
-  Term s (PPullArray a)
-pdropArray dropped arr = pmatch arr $ \(PPullArray (PForall f)) ->
-  pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-    punsafeCoerce f # plam (\len g -> k # pdoz len dropped # plam (\ix -> g # (ix #+ pupcast @PInteger dropped)))
-
-{- | Given a \'combining function\' and a starting value, reduce the argument
-array by repeatedly combining elements with the starting value. This is a
-left fold: thus, it will start at the lowest index and work its way upward.
-
-Assuming \(\Theta(k)\) cost in space, and \(\Theta(\ell)\) cost in time, per
-application of the \'combining function\', \(\Theta(kn)\) space complexity
-and \(\Theta(k\ell)\) time complexity.
-
-@since 1.12.0
--}
-pfoldlArray ::
-  forall (a :: S -> Type) (b :: S -> Type) (s :: S).
-  Term s (b :--> a :--> b) ->
-  Term s b ->
-  Term s (PPullArray a) ->
-  Term s b
-pfoldlArray f acc arr = pmatch arr $ \(PPullArray (PForall g)) ->
-  punsafeCoerce g
-    # plam
-      ( \len get ->
-          phoistAcyclic (pfix go) # f # get # pupcast @_ @PNatural len # 0 # acc
-      )
-  where
-    go ::
-      forall (s' :: S).
-      Term s' ((b :--> a :--> b) :--> (PInteger :--> a) :--> PInteger :--> PInteger :--> b :--> b) ->
-      Term s' ((b :--> a :--> b) :--> (PInteger :--> a) :--> PInteger :--> PInteger :--> b :--> b)
-    go self = plam $ \combine get limit currIx acc' ->
-      pif
-        (currIx #== limit)
-        acc'
-        (self # combine # get # limit # (currIx + 1) #$ combine # acc' #$ get # currIx)
-
 {- | Given a \'transformation function\' and a pull array, construct a new pull
 array where each element of the argument array has been transformed without
 moving it.
@@ -207,70 +169,12 @@ pmapArray ::
   Term s (a :--> b) ->
   Term s (PPullArray a) ->
   Term s (PPullArray b)
-pmapArray f arr = pmatch arr $ \(PPullArray (PForall g)) ->
-  pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-    punsafeCoerce g # plam (\len h -> k # len # pcompose h f)
-
-{- | Convert a pull array to a builtin list. Prefer this function to using a
-fold, as it builts the list \'in reverse\' to avoid quadratic construction
-cost.
-
-If you want to construct a builtin /array/ instead, use this function
-together with 'plistToArray'.
-
-\(\Theta(n)\) space and time complexity.
-
-@since 1.12.0
--}
-ppullArrayToList ::
-  forall (a :: S -> Type) (s :: S).
-  PlutusType (PBuiltinList a) =>
-  Term s (PPullArray a) ->
-  Term s (PBuiltinList a)
-ppullArrayToList arr = pmatch arr $ \(PPullArray (PForall f)) ->
-  punsafeCoerce f
-    # phoistAcyclic
-      ( plam $ \len f ->
-          phoistAcyclic (pfix go) # f # (pupcast @_ @PNatural len - 1) # pcon PNil
-      )
+pmapArray f arr = pmatch arr $ \(PPullArray g) ->
+  pcon $ PPullArray $ plam $ \k ->
+    g # plam (\len h -> k # len #$ pcompose # f # h)
   where
-    go ::
-      forall (s' :: S).
-      Term s' ((PInteger :--> a) :--> PInteger :--> PBuiltinList a :--> PBuiltinList a) ->
-      Term s' ((PInteger :--> a) :--> PInteger :--> PBuiltinList a :--> PBuiltinList a)
-    go self = plam $ \f currIx acc ->
-      pif
-        (currIx #== (-1))
-        acc
-        (self # f # (currIx - 1) #$ pconsBuiltin # (f # currIx) # acc)
-
-{- | Convert a pull array to a 'PList'. Prefer this function to using a fold, as
-it builds the 'PList' \'in reverse\' to avoid quadratic construction cost.
-
-\(\Theta(n)\) space and time complexity.
-
-@since 1.12.0
--}
-ppullArrayToSOPList ::
-  forall (a :: S -> Type) (s :: S).
-  Term s (PPullArray a) ->
-  Term s (PList a)
-ppullArrayToSOPList arr = pmatch arr $ \(PPullArray (PForall f)) ->
-  punsafeCoerce f
-    # plam
-      ( \len f ->
-          phoistAcyclic (pfix go) # f # (pupcast @_ @PNatural len - 1) # pcon PSNil
-      )
-  where
-    go ::
-      forall (s' :: S).
-      Term s' ((PInteger :--> a) :--> PInteger :--> PList a :--> PList a) ->
-      Term s' ((PInteger :--> a) :--> PInteger :--> PList a :--> PList a)
-    go self = plam $ \f currIx acc ->
-      pif
-        (currIx #== (-1))
-        acc
-        (self # f # (currIx - 1) # (pcon . PSCons (f # currIx) $ acc))
+    pcompose :: forall (s' :: S). Term s' ((a :--> b) :--> (PInteger :--> a) :--> PInteger :--> b)
+    pcompose = phoistAcyclic $ plam $ \f1 f2 i -> f1 #$ f2 # i
 
 {- | As 'pmapArray', but with an index-aware \'transformer function\'.
 
@@ -281,9 +185,57 @@ pimapArray ::
   Term s (PInteger :--> a :--> b) ->
   Term s (PPullArray a) ->
   Term s (PPullArray b)
-pimapArray f arr = pmatch arr $ \(PPullArray (PForall g)) ->
-  pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-    punsafeCoerce g # plam (\len h -> k # len # picompose f h)
+pimapArray f arr = pmatch arr $ \(PPullArray g) ->
+  pcon $ PPullArray $ plam $ \k ->
+    g # plam (\len h -> k # len #$ picompose # f # h)
+  where
+    picompose :: forall (s' :: S). Term s' ((PInteger :--> a :--> b) :--> (PInteger :--> a) :--> PInteger :--> b)
+    picompose = phoistAcyclic $ plam $ \f1 f2 i -> f1 # i #$ f2 # i
+
+{- | Given a size limit \(k\) and a pull array of length \(n\), construct a new
+pull array that consists of the first \(\min \{k, n\}\) elements of the
+argument pull array, at the same indexes.
+
+\(\Theta(1)\) space and time complexity.
+
+@since 1.12.0
+-}
+ptakeArray ::
+  forall (a :: S -> Type) (s :: S).
+  Term s PNatural ->
+  Term s (PPullArray a) ->
+  Term s (PPullArray a)
+ptakeArray lim arr = pmatch arr $ \(PPullArray g) ->
+  pcon $ PPullArray $ plam $ \k ->
+    g # plam (\len h -> k # pmin lim len # h)
+
+{- | Given a desired number of discarded elements \(k\) and a pull array of length
+\(n\), construct a new pull array that consists of all but the first \(min
+\{k, n\}\) elements of the argument pull array, with indexes appropriately
+offset.
+
+\(\Theta(1)\) space and time complexity.
+
+@since 1.12.0
+-}
+pdropArray ::
+  forall (a :: S -> Type) (s :: S).
+  Term s PNatural ->
+  Term s (PPullArray a) ->
+  Term s (PPullArray a)
+pdropArray dropped arr = pmatch arr $ \(PPullArray g) ->
+  pcon $ PPullArray $ plam $ \k ->
+    g # plam (\len h -> k # pdoz len dropped #$ go # h # dropped)
+  where
+    pdoz :: Term s PNatural -> Term s PNatural -> Term s PNatural
+    pdoz x y = plet (pupcast @PInteger x #- pupcast y) $ \result ->
+      punsafeCoerce $
+        pif
+          (result #<= (-1))
+          0
+          result
+    go :: forall (s' :: S). Term s' ((PInteger :--> a) :--> PNatural :--> PInteger :--> a)
+    go = phoistAcyclic $ plam $ \f x i -> f # (i #+ pupcast @PInteger x)
 
 {- | Given a \'combining function\' and two pull arrays, produce a new pull
 array whose length is the minimum of the lengths of the arguments, and whose
@@ -300,18 +252,23 @@ pzipWithArray ::
   Term s (PPullArray a) ->
   Term s (PPullArray b) ->
   Term s (PPullArray c)
-pzipWithArray f arr1 arr2 = pmatch arr1 $ \(PPullArray (PForall g1)) ->
-  pmatch arr2 $ \(PPullArray (PForall g2)) ->
-    pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-      punsafeCoerce g1
+pzipWithArray f arr1 arr2 = pmatch arr1 $ \(PPullArray k1) ->
+  pmatch arr2 $ \(PPullArray k2) ->
+    pcon $ PPullArray $ plam $ \k ->
+      k1
         # plam
-          ( \len1 g1 ->
-              punsafeCoerce g2
+          ( \len1 h1 ->
+              k2
                 # plam
-                  ( \len2 g2 ->
-                      k # pmin @PNatural len1 len2 # pliftIndex f g1 g2
+                  ( \len2 h2 ->
+                      k # pmin len1 len2 #$ go # f # h1 # h2
                   )
           )
+  where
+    go ::
+      forall (s' :: S).
+      Term s' ((a :--> b :--> c) :--> (PInteger :--> a) :--> (PInteger :--> b) :--> PInteger :--> c)
+    go = phoistAcyclic $ plam $ \combine ix1 ix2 i -> combine # (ix1 # i) #$ ix2 # i
 
 {- | As 'pzipWithArray', but with an index-aware \'combining function\'.
 
@@ -323,125 +280,120 @@ pizipWithArray ::
   Term s (PPullArray a) ->
   Term s (PPullArray b) ->
   Term s (PPullArray c)
-pizipWithArray f arr1 arr2 = pmatch arr1 $ \(PPullArray (PForall g1)) ->
-  pmatch arr2 $ \(PPullArray (PForall g2)) ->
-    pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-      punsafeCoerce g1
+pizipWithArray f arr1 arr2 = pmatch arr1 $ \(PPullArray k1) ->
+  pmatch arr2 $ \(PPullArray k2) ->
+    pcon $ PPullArray $ plam $ \k ->
+      k1
         # plam
-          ( \len1 g1 ->
-              punsafeCoerce g2
+          ( \len1 h1 ->
+              k2
                 # plam
-                  ( \len2 g2 ->
-                      k # pmin @PNatural len1 len2 # piliftIndex f g1 g2
+                  ( \len2 h2 ->
+                      k # pmin len1 len2 #$ go # f # h1 # h2
                   )
           )
+  where
+    go ::
+      forall (s' :: S).
+      Term s' ((PInteger :--> a :--> b :--> c) :--> (PInteger :--> a) :--> (PInteger :--> b) :--> PInteger :--> c)
+    go = phoistAcyclic $ plam $ \combine ix1 ix2 i -> combine # i # (ix1 # i) #$ ix2 # i
 
-{- | Given a length @n@, construct the pull array equivalent of @[0, 1, ... n -
-1]@.
+{- | Given a \'combining function\' and a starting value, reduce the argument
+array by repeatedly combining elements with the starting value. This is a
+left fold: thus, it will start at the lowest index and work its way upward.
 
-\(Theta(1)\) space and time complexity.
+Assuming \(\Theta(k)\) cost in space, and \(\Theta(\ell)\) cost in time, per
+application of the \'combining function\', \(\Theta(kn)\) space complexity
+and \(\Theta(k\ell)\) time complexity.
 
-@since 1.12.0
+@since 1.13.0
 -}
-piota ::
-  forall (s :: S).
-  Term s PNatural ->
-  Term s (PPullArray PInteger)
-piota len = pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-  k # len # pid
-
-{- | Given a length and a function from indexes to values, construct the pull
-array of that length, each of whose indexes stores the value computed by that
-function.
-
-\(Theta(1)\) space and time complexity.
-
-@since 1.12.0
--}
-pgenerate ::
-  forall (a :: S -> Type) (s :: S).
-  Term s PNatural ->
-  Term s (PInteger :--> a) ->
-  Term s (PPullArray a)
-pgenerate len f = pcon . PPullArray . PForall $ punsafeCoerce $ plam $ \k ->
-  k # len # f
-
--- Helpers
-
-newtype PArrOf (a :: S -> Type) (r :: S -> Type) (s :: S)
-  = PArrOf ((:-->) (PNatural :--> (PInteger :--> r) :--> r) r s)
-
-pcompose ::
-  forall (a :: S -> Type) (b :: S -> Type) (c :: S -> Type) (s :: S).
-  Term s (a :--> b) ->
-  Term s (b :--> c) ->
-  Term s (a :--> c)
-pcompose f g = plam $ \x -> g #$ f # x
-
-picompose ::
+pfoldArray ::
   forall (a :: S -> Type) (b :: S -> Type) (s :: S).
-  Term s (PInteger :--> a :--> b) ->
-  Term s (PInteger :--> a) ->
-  Term s (PInteger :--> b)
-picompose f g = plam $ \ix -> f # ix #$ g # ix
+  Term s (b :--> a :--> b) ->
+  Term s b ->
+  Term s (PPullArray a) ->
+  Term s b
+pfoldArray f x arr = pmatch arr $ \(PPullArray k) ->
+  k # plam (\len h -> go # f # h # pupcast len # x # 0)
+  where
+    go ::
+      forall (s' :: S).
+      Term s' ((b :--> a :--> b) :--> (PInteger :--> a) :--> PInteger :--> b :--> PInteger :--> b)
+    go = phoistAcyclic $ pfix $ \self -> plam $ \combine get limit acc ix ->
+      pif
+        (ix #== limit)
+        acc
+        (self # combine # get # limit # (combine # acc #$ get # ix) # (ix + 1))
 
-pliftIndex ::
-  forall (a :: S -> Type) (b :: S -> Type) (c :: S -> Type) (s :: S).
-  Term s (a :--> b :--> c) ->
-  Term s (PInteger :--> a) ->
-  Term s (PInteger :--> b) ->
-  Term s (PInteger :--> c)
-pliftIndex f g1 g2 = plam $ \i -> f # (g1 # i) # (g2 # i)
+{- | As 'pfoldArray', but from the /highest/ index working /downward/.
 
-piliftIndex ::
-  forall (a :: S -> Type) (b :: S -> Type) (c :: S -> Type) (s :: S).
-  Term s (PInteger :--> a :--> b :--> c) ->
-  Term s (PInteger :--> a) ->
-  Term s (PInteger :--> b) ->
-  Term s (PInteger :--> c)
-piliftIndex f g1 g2 = plam $ \i -> f # i # (g1 # i) # (g2 # i)
+@since 1.13.0
+-}
+prfoldArray ::
+  forall (a :: S -> Type) (b :: S -> Type) (s :: S).
+  Term s (b :--> a :--> b) ->
+  Term s b ->
+  Term s (PPullArray a) ->
+  Term s b
+prfoldArray f x arr = pmatch arr $ \(PPullArray k) ->
+  k # plam (\len h -> go # f # h # x # (pupcast len - 1))
+  where
+    go ::
+      forall (s' :: S).
+      Term s' ((b :--> a :--> b) :--> (PInteger :--> a) :--> b :--> PInteger :--> b)
+    go = phoistAcyclic $ pfix $ \self -> plam $ \combine get acc ix ->
+      pif
+        (ix #== (-1))
+        acc
+        (self # combine # get # (combine # acc #$ get # ix) # (ix - 1))
 
-pmin ::
+{- | Convert a pull array to a builtin list. Prefer using this function to
+either kind of fold, as it is faster.
+
+If you want to construct a builtin /array/ instead, use this function
+together with 'plistToArray'.
+
+\(\Theta(n)\) space and time complexity.
+
+@since 1.12.0
+-}
+ppullArrayToList ::
   forall (a :: S -> Type) (s :: S).
-  POrd a =>
-  Term s a ->
-  Term s a ->
-  Term s a
-pmin x y = pif (x #<= y) x y
+  PlutusType (PBuiltinList a) =>
+  Term s (PPullArray a) ->
+  Term s (PBuiltinList a)
+ppullArrayToList arr = pmatch arr $ \(PPullArray k) ->
+  k # plam (\len h -> go # h # pcon PNil # (pupcast len - 1))
+  where
+    go ::
+      forall (s' :: S).
+      Term s' ((PInteger :--> a) :--> PBuiltinList a :--> PInteger :--> PBuiltinList a)
+    go = phoistAcyclic $ pfix $ \self -> plam $ \get acc ix ->
+      pif
+        (ix #== (-1))
+        acc
+        (self # get # (pconsBuiltin # (get # ix) # acc) # (ix - 1))
 
-pid ::
+{- | Convert a pull array to a 'PList'. Prefer using this function to either
+kind of fold, as it is faster.
+
+\(\Theta(n)\) space and time complexity.
+
+@since 1.12.0
+-}
+ppullArrayToSOPList ::
   forall (a :: S -> Type) (s :: S).
-  Term s (a :--> a)
-pid = phoistAcyclic $ plam id
-
--- Difference-or-zero
-pdoz :: Term s PNatural -> Term s PNatural -> Term s PNatural
-pdoz x y = plet (pupcast @PInteger x #- pupcast y) $ \result ->
-  pif
-    (result #<= (-1))
-    pzero
-    (punsafeCoerce result)
-
-padd ::
-  forall (a :: S -> Type) (s :: S).
-  PAdditiveSemigroup a =>
-  Term s (a :--> a :--> a)
-padd = phoistAcyclic $ plam (#+)
-
-pscaleBy ::
-  forall (a :: S -> Type) (s :: S).
-  PAdditiveSemigroup a =>
-  Term s (PPositive :--> a :--> a)
-pscaleBy = phoistAcyclic $ plam $ \p x -> pscalePositive x p
-
-pmul ::
-  forall (a :: S -> Type) (s :: S).
-  PMultiplicativeSemigroup a =>
-  Term s (a :--> a :--> a)
-pmul = phoistAcyclic $ plam (#*)
-
-ppowBy ::
-  forall (a :: S -> Type) (s :: S).
-  PMultiplicativeSemigroup a =>
-  Term s (PPositive :--> a :--> a)
-ppowBy = phoistAcyclic $ plam $ \p x -> ppowPositive x p
+  Term s (PPullArray a) ->
+  Term s (PList a)
+ppullArrayToSOPList arr = pmatch arr $ \(PPullArray k) ->
+  k # plam (\len h -> go # h # pcon PSNil # (pupcast len - 1))
+  where
+    go ::
+      forall (s' :: S).
+      Term s' ((PInteger :--> a) :--> PList a :--> PInteger :--> PList a)
+    go = phoistAcyclic $ pfix $ \self -> plam $ \get acc ix ->
+      pif
+        (ix #== (-1))
+        acc
+        (self # get # (pcon . PSCons (get # ix) $ acc) # (ix - 1))

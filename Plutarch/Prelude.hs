@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-deprecations #-}
+
 module Plutarch.Prelude (
   -- * Boolean
   PBool (..),
@@ -32,7 +34,6 @@ module Plutarch.Prelude (
   -- * Cryptographic primitives
   psha2_256,
   psha3_256,
-  pverifySignature,
 
   -- * Data encoding
   PAsData (..),
@@ -56,6 +57,7 @@ module Plutarch.Prelude (
   pserialiseData,
   psndBuiltin,
   ptailBuiltin,
+  pheadTailBuiltin,
 
   -- * Integer
   PInteger,
@@ -193,13 +195,12 @@ module Plutarch.Prelude (
   ppositiveToNatural,
 
   -- * Other
-  pto,
   pinl,
   plam,
   PForall (..),
 
   -- * Show
-  PShow,
+  PShow (pshow'),
   pshow,
 
   -- * Term and related functionality
@@ -222,6 +223,7 @@ module Plutarch.Prelude (
   PTryFrom (..),
   ptryFrom,
   pupcast,
+  pto,
 
   -- * Maybe
   PMaybe (..),
@@ -248,20 +250,16 @@ module Plutarch.Prelude (
   tcont,
 
   -- * Tracing
-  ptrace,
   ptraceDebug,
   ptraceDebugError,
   ptraceDebugIfFalse,
   ptraceDebugIfTrue,
   ptraceDebugShowId,
-  ptraceError,
-  ptraceIfFalse,
   ptraceInfo,
   ptraceInfoError,
   ptraceInfoIfFalse,
   ptraceInfoIfTrue,
   ptraceInfoShowId,
-  ptraceShowId,
 
   -- * Semigroup and Monoid
   PSemigroup (..),
@@ -275,6 +273,12 @@ module Plutarch.Prelude (
   punrollBound',
   punrollUnbound,
   punrollUnboundWhole,
+
+  -- * Validation
+  PValidateData (..),
+  Don'tValidate (..),
+  DeriveNewtypePValidateData (..),
+  pparseData,
 ) where
 
 import Plutarch.Builtin.Array
@@ -297,13 +301,14 @@ import Plutarch.Internal.ListLike
 import Plutarch.Internal.Newtype
 import Plutarch.Internal.Numeric
 import Plutarch.Internal.Ord
-import Plutarch.Internal.Other
 import Plutarch.Internal.PLam
+import Plutarch.Internal.Parse
 import Plutarch.Internal.PlutusType
 import Plutarch.Internal.Quantification
 import Plutarch.Internal.ScottEncoding
 import Plutarch.Internal.Semigroup
 import Plutarch.Internal.Show
+import Plutarch.Internal.Subtype
 import Plutarch.Internal.Term
 import Plutarch.Internal.TryFrom
 import Plutarch.List

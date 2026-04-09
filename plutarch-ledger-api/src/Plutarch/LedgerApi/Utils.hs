@@ -43,7 +43,6 @@ module Plutarch.LedgerApi.Utils (
 import Data.Kind (Type)
 import GHC.Generics (Generic)
 import Generics.SOP qualified as SOP
-import Plutarch.Internal.Parse (PValidateData)
 import Plutarch.Internal.PlutusType (PlutusType (pcon', pmatch'))
 import Plutarch.Prelude
 import Plutarch.Unsafe (punsafeCoerce)
@@ -151,6 +150,8 @@ data PRationalData s = PRationalData
   deriving
     ( -- | @since 3.3.0
       PlutusType
+    , -- | @since 3.6.0
+      PValidateData
     )
     via (DeriveAsDataStruct PRationalData)
 
@@ -171,8 +172,9 @@ deriving via
 instance PTryFrom PData (PAsData PRationalData) where
   ptryFrom' opq = runTermCont $ do
     opq' <- pletC $ pasConstr # opq
-    pguardC "ptryFrom(PRationalData): invalid constructor id" $ pfstBuiltin # opq' #== 0
-    flds <- pletC $ psndBuiltin # opq'
+    PBuiltinPair x y <- pmatchC opq'
+    pguardC "ptryFrom(PRationalData): invalid constructor id" $ x #== 0
+    flds <- pletC y
     numr <- pletC $ ptryFrom @(PAsData PInteger) (phead # flds) fst
     ratTail <- pletC $ ptail # flds
     denm <- pletC $ ptryFrom @(PAsData PPositive) (phead # ratTail) fst
@@ -432,4 +434,4 @@ liftCompareOp f x y = phoistAcyclic (plam go) # x # y
     go l r = unTermCont $ do
       PRationalData ln ld <- pmatchC l
       PRationalData rn rd <- pmatchC r
-      pure $ f (pfromData ln * pto (pfromData rd)) (pfromData rn * pto (pfromData ld))
+      pure $ f (pfromData ln * pupcast (pfromData rd)) (pfromData rn * pupcast (pfromData ld))

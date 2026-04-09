@@ -8,17 +8,16 @@ import Data.Kind (Type)
 import Plutarch.Builtin.Bool (pif)
 import Plutarch.Builtin.Integer (PInteger)
 import Plutarch.Internal.Eq ((#==))
-import Plutarch.Internal.Fix (pfixHoisted)
+import Plutarch.Internal.Fix (pfix)
 import Plutarch.Internal.Numeric (PPositive, pone, (#+))
 import Plutarch.Internal.Ord (POrd)
-import Plutarch.Internal.Other (pto)
 import Plutarch.Internal.PLam (plam)
+import Plutarch.Internal.Subtype (pupcast)
 import Plutarch.Internal.Term (
   S,
   Term,
   phoistAcyclic,
   (#),
-  (#$),
   (:-->),
  )
 
@@ -47,11 +46,12 @@ class POrd a => PCountable (a :: S -> Type) where
   -- | @since 1.10.0
   psuccessor :: forall (s :: S). Term s (a :--> a)
 
-  -- | The default implementation of this function is inefficient: if at all
-  -- possible, give instances an optimized version that doesn't require
-  -- recursion.
-  --
-  -- @since 1.10.0
+  {- | The default implementation of this function is inefficient: if at all
+  possible, give instances an optimized version that doesn't require
+  recursion.
+
+  @since 1.10.0
+  -}
   {-# INLINEABLE psuccessorN #-}
   psuccessorN :: forall (s :: S). Term s (PPositive :--> a :--> a)
   psuccessorN = phoistAcyclic $ plam $ \n x -> go n # (psuccessor # x) # pone
@@ -60,7 +60,7 @@ class POrd a => PCountable (a :: S -> Type) where
         forall (s' :: S).
         Term s' PPositive ->
         Term s' (a :--> PPositive :--> a)
-      go limit = pfixHoisted #$ plam $ \self acc count ->
+      go limit = pfix $ \self -> plam $ \acc count ->
         pif
           (count #== limit)
           acc
@@ -71,7 +71,7 @@ instance PCountable PInteger where
   {-# INLINEABLE psuccessor #-}
   psuccessor = phoistAcyclic $ plam (+ 1)
   {-# INLINEABLE psuccessorN #-}
-  psuccessorN = phoistAcyclic $ plam $ \p i -> pto p + i
+  psuccessorN = phoistAcyclic $ plam $ \p i -> pupcast p + i
 
 -- | @since 1.10.0
 instance PCountable PPositive where
@@ -104,11 +104,12 @@ class PCountable a => PEnumerable (a :: S -> Type) where
   -- | @since 1.10.0
   ppredecessor :: forall (s :: S). Term s (a :--> a)
 
-  -- | The default implementation of this function is inefficient: if at all
-  -- possible, give instances an optimized version that doesn't require
-  -- recursion.
-  --
-  -- @since 1.10.0
+  {- | The default implementation of this function is inefficient: if at all
+  possible, give instances an optimized version that doesn't require
+  recursion.
+
+  @since 1.10.0
+  -}
   {-# INLINEABLE ppredecessorN #-}
   ppredecessorN :: forall (s :: S). Term s (PPositive :--> a :--> a)
   ppredecessorN = phoistAcyclic $ plam $ \n x -> go n # (ppredecessor # x) # pone
@@ -117,7 +118,7 @@ class PCountable a => PEnumerable (a :: S -> Type) where
         forall (s' :: S).
         Term s' PPositive ->
         Term s' (a :--> PPositive :--> a)
-      go limit = pfixHoisted #$ plam $ \self acc count ->
+      go limit = pfix $ \self -> plam $ \acc count ->
         pif
           (count #== limit)
           acc
@@ -128,4 +129,4 @@ instance PEnumerable PInteger where
   {-# INLINEABLE ppredecessor #-}
   ppredecessor = phoistAcyclic $ plam (- 1)
   {-# INLINEABLE ppredecessorN #-}
-  ppredecessorN = phoistAcyclic $ plam $ \p i -> i - pto p
+  ppredecessorN = phoistAcyclic $ plam $ \p i -> i - pupcast p

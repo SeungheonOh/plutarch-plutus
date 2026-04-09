@@ -21,8 +21,9 @@ data POutputDatum (s :: S)
   | POutputDatumHash
       { poutputDatum'datumHash :: Term s (PAsData PDatumHash)
       }
-  | -- | Inline datum as per
-    -- [CIP-0032](https://github.com/cardano-foundation/CIPs/blob/master/CIP-0032/README.md)
+  | {- | Inline datum as per
+    [CIP-0032](https://github.com/cardano-foundation/CIPs/blob/master/CIP-0032/README.md)
+    -}
     POutputDatum
       { poutputDatum'outputDatum :: Term s PDatum
       }
@@ -43,6 +44,8 @@ data POutputDatum (s :: S)
   deriving
     ( -- | @since 3.3.0
       PlutusType
+    , -- | @since 3.6.0
+      PValidateData
     )
     via (DeriveAsDataStruct POutputDatum)
 
@@ -79,6 +82,8 @@ data PTxOut (s :: S) = PTxOut
   deriving
     ( -- | @since 3.3.0
       PlutusType
+    , -- | @since 3.6.0
+      PValidateData
     )
     via (DeriveAsDataStruct PTxOut)
 

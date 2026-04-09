@@ -3,7 +3,6 @@ module Plutarch.Test.Suite.PlutarchLedgerApi.V1.Interval (tests) where
 import Plutarch.LedgerApi.Interval (
   PInterval,
   pafter,
-  palways,
   pbefore,
   pcontains,
   pfrom,
@@ -14,6 +13,7 @@ import Plutarch.LedgerApi.Interval (
   pmember,
   psingleton,
   pto,
+  punbounded,
  )
 import Plutarch.LedgerApi.V1 (PPosixTime)
 import Plutarch.Prelude hiding (psingleton, pto)
@@ -46,13 +46,13 @@ tests =
         "extra.intervalutils"
         [ goldenGroup
             "constants"
-            [ goldenEval "always" (palways @PInteger)
+            [ goldenEval "unbounded" (punbounded @PInteger)
             ]
         , goldenGroup
             "contains"
             [ goldenEval "in interval" (pcontains # i2 # i4)
             , goldenEval "out interval" (pcontains # i4 # i2)
-            , goldenEval "always" (pcontains # palways @PInteger # i1)
+            , goldenEval "unbounded" (pcontains # punbounded @PInteger # i1)
             ]
         , goldenGroup
             "member"
@@ -86,9 +86,9 @@ tests =
                   forAllShrinkShow arbitrary shrink show checkMember
               ]
           , testGroup
-              "always"
-              [ testProperty "always contains everything" $
-                  forAllShrinkShow arbitrary shrink show checkAlways
+              "unbounded"
+              [ testProperty "unbounded contains everything" $
+                  forAllShrinkShow arbitrary shrink show checkUnbounded
               ]
           , testGroup
               "hull"
@@ -174,8 +174,8 @@ checkMember a b c = actual == expected
 pcontains' :: forall (s :: S). Term s (PInterval PInteger :--> PInterval PInteger :--> PBool)
 pcontains' = precompileTerm pcontains
 
-checkAlways :: Integer -> Integer -> Bool
-checkAlways a b = plift $ pcontains' # palways # i
+checkUnbounded :: Integer -> Integer -> Bool
+checkUnbounded a b = plift $ pcontains' # punbounded # i
   where
     i :: Term s (PInterval PInteger)
     i = mkInterval a b
