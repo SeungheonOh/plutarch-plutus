@@ -81,7 +81,7 @@ import PlutusCore qualified as PLC
 import PlutusCore.DeBruijn (DeBruijn (DeBruijn), Index (Index))
 import Prettyprinter (Pretty (pretty), (<+>))
 import UntypedPlutusCore qualified as UPLC
-import UntypedPlutusCore.Transform.Simplifier qualified as UPLC
+import UntypedPlutusCore.Transform.Optimizer qualified as UPLC
 
 {- $hoisted
  __Explanation for hoisted terms:__
@@ -854,9 +854,9 @@ compileOptimizedWithInternalConfig internalConfig t = case asClosedRawTerm t of
     go ::
       UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun () ->
       Either UPLC.FreeVariableError (UPLC.Term DeBruijn UPLC.DefaultUni UPLC.DefaultFun ())
-    go compiled = flip evalStateT UPLC.initSimplifierTrace . PLC.runQuoteT $ do
+    go compiled = flip evalStateT UPLC.initOptimizerTrace . PLC.runQuoteT $ do
       unDB <- UPLC.unDeBruijnTerm . UPLC.termMapNames UPLC.fakeNameDeBruijn $ compiled
-      simplified <- UPLC.simplifyTerm UPLC.defaultSimplifyOpts def unDB
+      simplified <- UPLC.optimizeTerm UPLC.defaultOptimizeOpts def unDB
       debruijnd <- UPLC.deBruijnTerm simplified
       pure . UPLC.termMapNames UPLC.unNameDeBruijn $ debruijnd
 
@@ -897,9 +897,9 @@ optimizeTerm (Term raw) = Term $ \w64 ->
     go ::
       UPLC.Term UPLC.DeBruijn UPLC.DefaultUni UPLC.DefaultFun () ->
       Either UPLC.FreeVariableError (UPLC.Term DeBruijn UPLC.DefaultUni UPLC.DefaultFun ())
-    go compiled = flip evalStateT UPLC.initSimplifierTrace . PLC.runQuoteT $ do
+    go compiled = flip evalStateT UPLC.initOptimizerTrace . PLC.runQuoteT $ do
       unDB <- UPLC.unDeBruijnTerm . UPLC.termMapNames UPLC.fakeNameDeBruijn $ compiled
-      simplified <- UPLC.simplifyTerm UPLC.defaultSimplifyOpts def unDB
+      simplified <- UPLC.optimizeTerm UPLC.defaultOptimizeOpts def unDB
       debruijnd <- UPLC.deBruijnTerm simplified
       pure . UPLC.termMapNames UPLC.unNameDeBruijn $ debruijnd
 
